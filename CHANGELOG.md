@@ -1,15 +1,17 @@
-## [0.4.2](https://github.com/dbalsom/martypc/releases/tag/0.4.2) (2026-05-XX)
+
+## [0.4.2](https://github.com/dbalsom/martypc/releases/tag/0.4.2) (2025-XX-XX)
 
 ## Frontend Bug Fixes / Improvements
- - Fixed a bug where alternate ROM dumps were not handled correctly (mostly encountered with EGA ROMs)
- - Fixed the Amber CRT shader being blue
- - Added IBM PCjr keyboard mapping
- - Fixed bad md5 in PCjr ROM definition for 64K ROM image
- - Updated GLaBIOS to 0.4
+- Fixed a bug where alternate ROM dumps were not handled correctly (mostly encountered with EGA ROMs)
+- Fixed the Amber CRT shader being blue
+- Added IBM PCjr keyboard mapping
+- Fixed bad md5 in PCjr ROM definition for 64K ROM image
+- Updated GLaBIOS to 0.4
 
 ## Core Bug Fixes / Improvements
  - Add Fantasy EMS device (thanks sqpat)
- - VGA: Fix Miscellaneous Output Register not being readable- 
+ - VGA: Fix Miscellaneous Output Register not being readable
+ - V20: Fix bug in BINS instruction
  - Improved Light Pen emulation
  - Implemented IBM PCjr keyboard including the `Function` key (Mapped to F12)
  - Fixed a rendering bug in PCjr low-resolution 2bpp mode
