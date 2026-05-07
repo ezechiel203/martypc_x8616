@@ -360,12 +360,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "ard808x_client"
+name = "arduinox86_client"
 version = "0.3.0"
-source = "git+https://github.com/dbalsom/arduino808x#9bbe3f1384fdddb5ee8dc8532a96ee9fc237af02"
+source = "git+https://github.com/dbalsom/arduino808x#2ccae6470ef2cc12e247b74e3ad2d226b7f74936"
 dependencies = [
+ "binrw 0.15.1",
  "log",
- "serialport 4.3.1-alpha.0",
+ "modular-bitfield",
+ "rand 0.9.0",
+ "rand_distr",
+ "serialport",
+ "strum_macros 0.27.1",
+ "thiserror 2.0.11",
+]
+
+[[package]]
+name = "arduinox86_client"
+version = "0.3.0"
+source = "git+https://github.com/dbalsom/arduinoX86#2ccae6470ef2cc12e247b74e3ad2d226b7f74936"
+dependencies = [
+ "binrw 0.15.1",
+ "log",
+ "modular-bitfield",
+ "rand 0.9.0",
+ "rand_distr",
+ "serialport",
+ "strum_macros 0.27.1",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -768,7 +789,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "shlex",
  "syn 2.0.96",
  "which",
@@ -787,7 +808,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "shlex",
  "syn 2.0.96",
 ]
@@ -799,7 +820,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d4bca59c20d6f40c2cc0802afbe1e788b89096f61bdf7aeea6bf00f10c2909b"
 dependencies = [
  "array-init",
- "binrw_derive",
+ "binrw_derive 0.14.1",
+ "bytemuck",
+]
+
+[[package]]
+name = "binrw"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d53195f985e88ab94d1cc87e80049dd2929fd39e4a772c5ae96a7e5c4aad3642"
+dependencies = [
+ "array-init",
+ "binrw_derive 0.15.1",
  "bytemuck",
 ]
 
@@ -810,10 +842,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8ba42866ce5bced2645bfa15e97eef2c62d2bdb530510538de8dd3d04efff3c"
 dependencies = [
  "either",
- "owo-colors",
+ "owo-colors 3.5.0",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "binrw_derive"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5910da05ee556b789032c8ff5a61fb99239580aa3fd0bfaa8f4d094b2aee00ad"
+dependencies = [
+ "either",
+ "owo-colors 4.3.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2408,15 +2453,6 @@ version = "0.4.0"
 source = "git+https://github.com/dbalsom/fluxfox_fat.git?branch=bpb_fix#e098397c0d83c2a55a851b1d76b6e1ac10c5a6d5"
 dependencies = [
  "bitflags 2.8.0",
- "log",
-]
-
-[[package]]
-name = "fatfs"
-version = "0.4.0"
-source = "git+https://github.com/dbalsom/fatfs_martypc.git?branch=master#66bf942826c5324afea5906e53f6620d12c1e9ed"
-dependencies = [
- "bitflags 2.8.0",
  "chrono",
  "log",
 ]
@@ -2457,13 +2493,13 @@ name = "fluxfox"
 version = "0.2.0"
 source = "git+https://github.com/dbalsom/fluxfox.git?branch=martypc_consumer#e048e3f60a69f632605a517b6430749c00750e94"
 dependencies = [
- "binrw",
+ "binrw 0.14.1",
  "bit-vec 0.8.0",
  "bitflags 2.8.0",
  "bytemuck",
  "dyn-clone",
  "env_logger 0.11.6",
- "fatfs 0.4.0 (git+https://github.com/dbalsom/fluxfox_fat.git?branch=bpb_fix)",
+ "fatfs",
  "flate2",
  "getrandom 0.2.15",
  "histogram",
@@ -2653,15 +2689,6 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "fxhash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]
@@ -3026,6 +3053,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
+
+[[package]]
 name = "hassle-rs"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3320,12 +3353,12 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.7.1"
+version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
+checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.2",
+ "hashbrown 0.17.0",
 ]
 
 [[package]]
@@ -3562,6 +3595,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "libm"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
+
+[[package]]
 name = "libredox"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3676,7 +3715,8 @@ dependencies = [
 name = "marty_common"
 version = "0.4.1"
 dependencies = [
- "fxhash",
+ "indexmap 2.14.0",
+ "rustc-hash 2.1.2",
  "serde",
  "strum 0.27.1",
  "strum_macros 0.27.1",
@@ -3709,9 +3749,9 @@ name = "marty_core"
 version = "0.4.1"
 dependencies = [
  "anyhow",
- "ard808x_client",
+ "arduinox86_client 0.3.0 (git+https://github.com/dbalsom/arduinoX86)",
  "arraydeque",
- "binrw",
+ "binrw 0.14.1",
  "bytemuck",
  "cfg-if",
  "const_format",
@@ -3719,7 +3759,6 @@ dependencies = [
  "crossbeam-channel",
  "enum_dispatch",
  "fluxfox",
- "fxhash",
  "getrandom 0.2.15",
  "lazy_static",
  "log",
@@ -3733,7 +3772,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_with",
- "serialport 4.8.1",
+ "serialport",
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "toml 0.5.11",
@@ -3790,7 +3829,7 @@ dependencies = [
  "regex",
  "rfd",
  "serde",
- "serialport 4.8.1",
+ "serialport",
  "strum 0.27.1",
  "strum_macros 0.27.1",
  "toml 0.8.19",
@@ -3817,7 +3856,7 @@ dependencies = [
  "log",
  "marty_egui",
  "marty_frontend_common",
- "serialport 4.8.1",
+ "serialport",
  "wgpu 23.0.1",
 ]
 
@@ -3832,7 +3871,7 @@ dependencies = [
  "log",
  "marty_egui",
  "marty_frontend_common",
- "serialport 4.8.1",
+ "serialport",
  "web-time 1.1.0",
  "wgpu 23.0.1",
  "wgpu_wrapper",
@@ -3847,7 +3886,7 @@ dependencies = [
  "cfg-if",
  "crossbeam-channel",
  "egui 0.30.0",
- "fatfs 0.4.0 (git+https://github.com/dbalsom/fatfs_martypc.git?branch=master)",
+ "fatfs",
  "fluxfox",
  "gilrs",
  "log",
@@ -3897,7 +3936,7 @@ dependencies = [
  "regex",
  "resize",
  "rgb",
- "serialport 4.8.1",
+ "serialport",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -3993,7 +4032,7 @@ dependencies = [
  "fluxfox",
  "getrandom 0.2.15",
  "image 0.24.9",
- "indexmap 2.7.1",
+ "indexmap 2.14.0",
  "instant",
  "js-sys",
  "log",
@@ -4011,7 +4050,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serialport 4.8.1",
+ "serialport",
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "wasm-bindgen",
@@ -4053,7 +4092,7 @@ dependencies = [
  "rfd",
  "rodio",
  "serde",
- "serialport 4.8.1",
+ "serialport",
  "strum 0.27.1",
  "thiserror 2.0.11",
  "url",
@@ -4071,14 +4110,14 @@ name = "martypc_headless"
 version = "0.4.1"
 dependencies = [
  "anyhow",
- "ard808x_client",
+ "arduinox86_client 0.3.0 (git+https://github.com/dbalsom/arduino808x)",
  "colored 3.0.0",
  "criterion",
  "crossbeam-channel",
  "env_logger 0.11.6",
  "flate2",
  "getrandom 0.3.1",
- "indexmap 2.7.1",
+ "indexmap 2.14.0",
  "log",
  "marty_config",
  "marty_core",
@@ -4091,7 +4130,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serialport 4.8.1",
+ "serialport",
  "strum 0.27.1",
  "strum_macros 0.27.1",
 ]
@@ -4122,7 +4161,7 @@ dependencies = [
  "rfd",
  "rodio",
  "serde",
- "serialport 4.8.1",
+ "serialport",
  "strum 0.27.1",
  "thiserror 2.0.11",
  "url",
@@ -4269,7 +4308,7 @@ dependencies = [
  "indexmap 1.9.3",
  "log",
  "num-traits",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "spirv 0.2.0+1.5.4",
  "termcolor",
  "thiserror 1.0.69",
@@ -4288,9 +4327,9 @@ dependencies = [
  "cfg_aliases 0.1.1",
  "codespan-reporting",
  "hexf-parse",
- "indexmap 2.7.1",
+ "indexmap 2.14.0",
  "log",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "spirv 0.3.0+sdk-1.3.268.0",
  "termcolor",
  "thiserror 1.0.69",
@@ -4512,6 +4551,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+ "libm",
 ]
 
 [[package]]
@@ -4963,6 +5003,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
+name = "owo-colors"
+version = "4.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d211803b9b6b570f68772237e415a029d5a50c65d382910b879fb19d3271f94d"
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5325,6 +5371,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_distr"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
+dependencies = [
+ "num-traits",
+ "rand 0.9.0",
+]
+
+[[package]]
 name = "range-alloc"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5525,6 +5581,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
+name = "rustc-hash"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94300abf3f1ae2e2b8ffb7b58043de3d399c73fa6f4b73826402a5c457614dbe"
+
+[[package]]
 name = "rustix"
 version = "0.38.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5698,27 +5760,9 @@ dependencies = [
 
 [[package]]
 name = "serialport"
-version = "4.3.1-alpha.0"
-source = "git+https://github.com/dbalsom/serialport-rs?branch=arduino-fix#fd42cd35dca389ce97e6538933e270c25c151a42"
-dependencies = [
- "bitflags 2.8.0",
- "cfg-if",
- "core-foundation-sys",
- "io-kit-sys",
- "libudev",
- "mach2",
- "nix 0.26.4",
- "regex",
- "scopeguard",
- "unescaper",
- "winapi",
-]
-
-[[package]]
-name = "serialport"
-version = "4.8.1"
+version = "4.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21f60a586160667241d7702c420fc223939fb3c0bb8d3fac84f78768e8970dee"
+checksum = "2acaf3f973e8616d7ceac415f53fc60e190b2a686fbcf8d27d0256c741c5007b"
 dependencies = [
  "bitflags 2.8.0",
  "cfg-if",
@@ -5728,10 +5772,9 @@ dependencies = [
  "libudev",
  "mach2",
  "nix 0.26.4",
- "quote",
  "scopeguard",
  "unescaper",
- "windows-sys 0.52.0",
+ "winapi",
 ]
 
 [[package]]
@@ -6249,7 +6292,7 @@ version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
- "indexmap 2.7.1",
+ "indexmap 2.14.0",
  "toml_datetime",
  "winnow 0.5.40",
 ]
@@ -6260,7 +6303,7 @@ version = "0.22.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
- "indexmap 2.7.1",
+ "indexmap 2.14.0",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -6310,7 +6353,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "deb68604048ff8fa93347f02441e4487594adc20bb8a084f9e564d2b827a0a9f"
 dependencies = [
- "rustc-hash",
+ "rustc-hash 1.1.0",
 ]
 
 [[package]]
@@ -6876,7 +6919,7 @@ dependencies = [
  "parking_lot 0.12.3",
  "profiling",
  "raw-window-handle 0.5.2",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "smallvec",
  "thiserror 1.0.69",
  "web-sys",
@@ -6895,14 +6938,14 @@ dependencies = [
  "bitflags 2.8.0",
  "cfg_aliases 0.1.1",
  "document-features",
- "indexmap 2.7.1",
+ "indexmap 2.14.0",
  "log",
  "naga 23.1.0",
  "once_cell",
  "parking_lot 0.12.3",
  "profiling",
  "raw-window-handle 0.6.2",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "smallvec",
  "thiserror 1.0.69",
  "wgpu-hal 23.0.1",
@@ -6942,7 +6985,7 @@ dependencies = [
  "range-alloc",
  "raw-window-handle 0.5.2",
  "renderdoc-sys",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "smallvec",
  "thiserror 1.0.69",
  "wasm-bindgen",
@@ -6986,7 +7029,7 @@ dependencies = [
  "range-alloc",
  "raw-window-handle 0.6.2",
  "renderdoc-sys",
- "rustc-hash",
+ "rustc-hash 1.1.0",
  "smallvec",
  "thiserror 1.0.69",
  "wasm-bindgen",
@@ -7974,7 +8017,7 @@ dependencies = [
  "crossbeam-utils",
  "deflate64",
  "flate2",
- "indexmap 2.7.1",
+ "indexmap 2.14.0",
  "lzma-rs",
  "memchr",
  "time",
