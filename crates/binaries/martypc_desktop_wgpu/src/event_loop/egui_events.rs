@@ -104,7 +104,7 @@ pub fn handle_egui_event(emu: &mut Emulator, elwt: &EventLoopWindowTarget<()>, g
                     GuiEnum::DisplayAperture(aperture) => {
                         if let Some(vid) = emu.dm.set_display_aperture(*d_idx, *aperture).ok().flatten() {
                             if let Some(video_card) = emu.machine.bus().video(&vid) {
-                                if let Err(e) = emu.dm.on_card_resized(&vid, video_card.get_display_extents()) {
+                                if let Err(e) = emu.dm.on_card_resized(&vid, video_card.display_extents()) {
                                     log::error!("Failed to set display aperture for display target: {:?}", e);
                                 }
                             }

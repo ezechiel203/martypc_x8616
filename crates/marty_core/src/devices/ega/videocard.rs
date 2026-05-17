@@ -35,7 +35,7 @@ use crate::{bus::DeviceRunTimeUnit, devices::pic::Pic};
 use std::{collections::HashMap, path::Path};
 
 impl VideoCard for EGACard {
-    fn get_sync(&self) -> (bool, bool, bool, bool) {
+    fn sync(&self) -> (bool, bool, bool, bool) {
         (false, false, false, false)
     }
 
@@ -51,19 +51,19 @@ impl VideoCard for EGACard {
         }
     }
 
-    fn get_video_type(&self) -> VideoType {
+    fn video_type(&self) -> VideoType {
         VideoType::EGA
     }
 
-    fn get_render_mode(&self) -> RenderMode {
+    fn render_mode(&self) -> RenderMode {
         RenderMode::Direct
     }
 
-    fn get_render_depth(&self) -> RenderBpp {
+    fn render_depth(&self) -> RenderBpp {
         RenderBpp::Six
     }
 
-    fn get_display_mode(&self) -> DisplayMode {
+    fn display_mode(&self) -> DisplayMode {
         self.display_mode
     }
 
@@ -71,7 +71,7 @@ impl VideoCard for EGACard {
         // not implemented
     }
 
-    fn get_display_size(&self) -> (u32, u32) {
+    fn display_size(&self) -> (u32, u32) {
         /*        // EGA supports multiple fonts.
 
         let font_w = EGA_FONTS[self.current_font].w;
@@ -91,17 +91,17 @@ impl VideoCard for EGACard {
     }
 
     /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
-    fn get_start_address(&self) -> u16 {
+    fn start_address(&self) -> u16 {
         self.crtc.start_address()
     }
 
     /// Unimplemented for indirect rendering.
-    fn get_display_extents(&self) -> &DisplayExtents {
+    fn display_extents(&self) -> &DisplayExtents {
         &self.extents
     }
 
     /// Unimplemented for indirect rendering.
-    fn get_beam_pos(&self) -> Option<(u32, u32)> {
+    fn beam_pos(&self) -> Option<(u32, u32)> {
         Some((self.raster_x, self.raster_y))
     }
 
@@ -109,25 +109,25 @@ impl VideoCard for EGACard {
     fn debug_tick(&mut self, _ticks: u32, _cpumem: Option<&[u8]>) {}
 
     /// Get the current scanline being rendered.
-    fn get_scanline(&self) -> u32 {
+    fn scanline(&self) -> u32 {
         0
     }
 
     /// Return whether to double scanlines produced by this adapter.
     /// For EGA, this is false in 16Mhz modes and true in 14Mhz modes
-    fn get_scanline_double(&self) -> bool {
+    fn is_scanline_doubled(&self) -> bool {
         self.extents.double_scan
     }
 
     /// Return the u8 slice representing the requested buffer type.
-    fn get_buf(&self, buf_select: BufferSelect) -> &[u8] {
+    fn buf(&self, buf_select: BufferSelect) -> &[u8] {
         match buf_select {
             BufferSelect::Back => &self.buf[self.back_buf][..],
             BufferSelect::Front => &self.buf[self.front_buf][..],
         }
     }
 
-    fn get_display_buf(&self) -> &[u8] {
+    fn display_buf(&self) -> &[u8] {
         &self.buf[self.front_buf][..]
     }
 
@@ -135,21 +135,21 @@ impl VideoCard for EGACard {
         EGA_APERTURE_DESCS.to_vec()
     }
 
-    fn get_display_apertures(&self) -> Vec<DisplayAperture> {
+    fn display_apertures(&self) -> Vec<DisplayAperture> {
         self.extents.apertures.clone()
     }
 
-    fn get_overscan_color(&self) -> u8 {
+    fn overscan_color(&self) -> u8 {
         0
     }
 
     /// Return the current refresh rate.
     /// TODO: Handle VGA 70Hz modes.
-    fn get_refresh_rate(&self) -> f32 {
+    fn refresh_rate(&self) -> f32 {
         60.0
     }
 
-    fn get_clock_divisor(&self) -> u32 {
+    fn clock_divisor(&self) -> u32 {
         match self.sequencer.clocking_mode.dot_clock() {
             DotClock::Native => 1,
             DotClock::HalfClock => 2,
@@ -166,11 +166,11 @@ impl VideoCard for EGACard {
         }
     }
 
-    fn is_graphics_mode(&self) -> bool {
+    fn is_in_graphics_mode(&self) -> bool {
         self.mode_graphics
     }
 
-    fn get_cursor_info(&self) -> CursorInfo {
+    fn cursor_info(&self) -> CursorInfo {
         let addr = self.get_cursor_address();
 
         let span = self.crtc.get_cursor_span();
@@ -205,27 +205,27 @@ impl VideoCard for EGACard {
         }
     }
 
-    fn get_current_font(&self) -> Option<FontInfo> {
+    fn current_font(&self) -> Option<FontInfo> {
         None
     }
 
-    fn get_character_height(&self) -> u8 {
+    fn character_height(&self) -> u8 {
         self.crtc.maximum_scanline() + 1
     }
 
-    fn get_palette(&self) -> Option<Vec<[u8; 4]>> {
+    fn palette(&self) -> Option<Vec<[u8; 4]>> {
         None
     }
 
     #[rustfmt::skip]
     #[allow(dead_code)]
     /// Returns a string representation of all the CRTC Registers.
-    fn get_videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
+    fn videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
         let mut map = HashMap::new();
 
         let mut general_vec = Vec::new();
-        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.get_video_type()))));
-        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.get_display_mode()))));
+        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.video_type()))));
+        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.display_mode()))));
         general_vec.push(("Pixel Clock:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.misc_output_register.clock_select()))));
         general_vec.push(("Clock Divisor:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.sequencer.clock_divisor))));
         general_vec.push((
@@ -366,11 +366,11 @@ impl VideoCard for EGACard {
         self.reset_private();
     }
 
-    fn get_pixel(&self, _x: u32, _y: u32) -> &[u8] {
+    fn pixel(&self, _x: u32, _y: u32) -> &[u8] {
         &DUMMY_PIXEL
     }
 
-    fn get_pixel_raw(&self, _x: u32, _y: u32) -> u8 {
+    fn pixel_raw(&self, _x: u32, _y: u32) -> u8 {
         /*        let mut byte = 0;
 
         let x_byte_offset = (x + self.attribute_pel_panning as u32) / 8;
@@ -410,7 +410,7 @@ impl VideoCard for EGACard {
         0
     }
 
-    fn get_plane_slice(&self, plane: usize) -> &[u8] {
+    fn plane_slice(&self, plane: usize) -> &[u8] {
         self.sequencer.vram.plane_slice(plane)
     }
 
@@ -419,7 +419,7 @@ impl VideoCard for EGACard {
             let mut filename = path.to_path_buf();
             filename.push(format!("ega_plane{}.bin", i));
 
-            match std::fs::write(filename.clone(), self.get_plane_slice(i)) {
+            match std::fs::write(filename.clone(), self.plane_slice(i)) {
                 Ok(_) => {
                     log::debug!("Wrote memory dump: {}", &filename.display())
                 }
@@ -430,7 +430,7 @@ impl VideoCard for EGACard {
         }
     }
 
-    fn get_frame_count(&self) -> u64 {
+    fn frame_count(&self) -> u64 {
         self.frame
     }
 

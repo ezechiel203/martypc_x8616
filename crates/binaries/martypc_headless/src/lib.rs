@@ -683,7 +683,7 @@ pub fn run() {
 
     let mut highest_rate = 50.0;
     for card in cardlist.iter() {
-        let rate = machine.bus().video(&card).unwrap().get_refresh_rate();
+        let rate = machine.bus().video(&card).unwrap().refresh_rate();
         if rate > highest_rate {
             highest_rate = rate;
         }

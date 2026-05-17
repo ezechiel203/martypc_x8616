@@ -186,10 +186,10 @@ pub fn update_egui(emu: &mut Emulator, dm: &mut EFrameDisplayManager, tm: &Times
                 }
             };
 
-            let mem_dump_vec = emu
-                .machine
-                .bus()
-                .dump_virtual_flat_tokens_ex(mem_dump_addr as usize, addr as usize, vewport_len);
+            let mem_dump_vec =
+                emu.machine
+                    .bus()
+                    .dump_virtual_flat_tokens_ex(mem_dump_addr as usize, addr as usize, vewport_len);
 
             //framework.gui.memory_viewer.set_row(mem_dump_addr as usize);
 
@@ -197,7 +197,6 @@ pub fn update_egui(emu: &mut Emulator, dm: &mut EFrameDisplayManager, tm: &Times
             emu.gui.ems_virtual_memory_viewer.set_memory(mem_dump_vec);
         }
     }
-
 
     // Update data visualizer
     if emu.gui.is_window_open(GuiWindow::DataVisualizer) {
@@ -224,7 +223,7 @@ pub fn update_egui(emu: &mut Emulator, dm: &mut EFrameDisplayManager, tm: &Times
             .update_data(emu.machine.bus().get_vec_at_ex(addr, data_len));
 
         emu.machine.primary_videocard().map(|vc| {
-            let palette = vc.get_palette();
+            let palette = vc.palette();
             if let Some(pal) = palette {
                 emu.gui.data_visualizer.update_palette_u8(pal);
             }
@@ -250,7 +249,6 @@ pub fn update_egui(emu: &mut Emulator, dm: &mut EFrameDisplayManager, tm: &Times
             // emu.gui.fantasy_ems_stats_viewer.set_content(vec);
             let ems_state = fantasy_ems.get_ems_debug_state();
             emu.gui.fantasy_ems_stats_viewer.update_state(&ems_state);
-
         }
     }
 

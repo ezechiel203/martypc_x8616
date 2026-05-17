@@ -376,7 +376,7 @@ impl Emulator {
 
         for vid in vid_list.iter() {
             if let Some(card) = self.machine.bus().video(vid) {
-                let extents = card.get_display_extents();
+                let extents = card.display_extents();
 
                 //assert_eq!(extents.double_scan, true);
                 if let Err(_e) = self.dm.on_card_resized(vid, extents) {

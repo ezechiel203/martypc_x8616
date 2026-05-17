@@ -33,15 +33,6 @@ use super::*;
 use crate::{device_traits::videocard::*, devices::pic::Pic};
 
 impl VideoCard for MDACard {
-    fn get_sync(&self) -> (bool, bool, bool, bool) {
-        (
-            self.crtc.vblank(),
-            self.crtc.hblank(),
-            self.crtc.den(),
-            self.crtc.border(),
-        )
-    }
-
     fn set_video_option(&mut self, opt: VideoOption) {
         match opt {
             VideoOption::DebugDraw(state) => {
@@ -54,19 +45,19 @@ impl VideoCard for MDACard {
         }
     }
 
-    fn get_video_type(&self) -> VideoType {
+    fn video_type(&self) -> VideoType {
         VideoType::MDA
     }
 
-    fn get_render_mode(&self) -> RenderMode {
+    fn render_mode(&self) -> RenderMode {
         RenderMode::Direct
     }
 
-    fn get_render_depth(&self) -> RenderBpp {
+    fn render_depth(&self) -> RenderBpp {
         RenderBpp::Four
     }
 
-    fn get_display_mode(&self) -> DisplayMode {
+    fn display_mode(&self) -> DisplayMode {
         self.display_mode
     }
 
@@ -79,7 +70,7 @@ impl VideoCard for MDACard {
         self.clock_mode = mode;
     }
 
-    fn get_display_size(&self) -> (u32, u32) {
+    fn display_size(&self) -> (u32, u32) {
         // MDA supports a single fixed 8x14 font. The size of the displayed window
         // is always HorizontalDisplayed * (VerticalDisplayed * (MaximumScanlineAddress + 1))
         // (Excepting fancy CRTC tricks that delay vsync)
@@ -88,7 +79,7 @@ impl VideoCard for MDACard {
         (width, height)
     }
 
-    fn get_display_extents(&self) -> &DisplayExtents {
+    fn display_extents(&self) -> &DisplayExtents {
         &self.extents
     }
 
@@ -96,65 +87,17 @@ impl VideoCard for MDACard {
         MDA_APERTURE_DESCS.to_vec()
     }
 
-    fn get_display_apertures(&self) -> Vec<DisplayAperture> {
+    fn display_apertures(&self) -> Vec<DisplayAperture> {
         self.extents.apertures.clone()
     }
 
-    /// Get the position of the electron beam.
-    fn get_beam_pos(&self) -> Option<(u32, u32)> {
-        Some((self.beam_x, self.beam_y))
-    }
-
-    /// Tick the MDA the specified number of video clock cycles.
-    fn debug_tick(&mut self, ticks: u32, _cpumem: Option<&[u8]>) {
-        match self.clock_mode {
-            ClockingMode::Character | ClockingMode::Dynamic => {
-                let pixel_ticks = ticks % MDA_CHAR_CLOCK as u32;
-                let char_ticks = ticks / MDA_CHAR_CLOCK as u32;
-
-                assert_eq!(ticks, pixel_ticks + (char_ticks * 9));
-
-                for _ in 0..pixel_ticks {
-                    self.tick();
-                }
-                for _ in 0..char_ticks {
-                    self.tick_hchar();
-                }
-            }
-            ClockingMode::Cycle => {
-                for _ in 0..ticks {
-                    self.tick();
-                }
-            }
-            _ => {}
-        }
-
-        log::warn!(
-            "debug_tick(): new cur_screen_cycles: {} beam_x: {} beam_y: {}",
-            self.cur_screen_cycles,
-            self.beam_x,
-            self.beam_y
-        );
-    }
-
     #[inline]
-    fn get_overscan_color(&self) -> u8 {
+    fn overscan_color(&self) -> u8 {
         0
     }
 
-    /// Get the current scanline being rendered.
-    fn get_scanline(&self) -> u32 {
-        self.scanline
-    }
-
-    /// Return whether or not to double scanlines for this video device. For CGA, this is always
-    /// true.
-    fn get_scanline_double(&self) -> bool {
-        true
-    }
-
     /// Return the u8 slice representing the requested buffer type.
-    fn get_buf(&self, buf_select: BufferSelect) -> &[u8] {
+    fn buf(&self, buf_select: BufferSelect) -> &[u8] {
         match buf_select {
             BufferSelect::Back => &self.buf[self.back_buf][..],
             BufferSelect::Front => &self.buf[self.front_buf][..],
@@ -162,13 +105,47 @@ impl VideoCard for MDACard {
     }
 
     /// Return the u8 slice representing the front buffer of the device. (Direct rendering only)
-    fn get_display_buf(&self) -> &[u8] {
+    fn display_buf(&self) -> &[u8] {
         &self.buf[self.front_buf][..]
     }
 
+    fn clock_divisor(&self) -> u32 {
+        1
+    }
+
+    fn sync(&self) -> (bool, bool, bool, bool) {
+        (
+            self.crtc.vblank(),
+            self.crtc.hblank(),
+            self.crtc.den(),
+            self.crtc.border(),
+        )
+    }
+
+    /// Get the position of the electron beam.
+    fn beam_pos(&self) -> Option<(u32, u32)> {
+        Some((self.beam_x, self.beam_y))
+    }
+
+    /// Get the current scanline being rendered.
+    fn scanline(&self) -> u32 {
+        self.scanline
+    }
+
+    /// Return whether or not to double scanlines for this video device. For CGA, this is always
+    /// true.
+    fn is_scanline_doubled(&self) -> bool {
+        true
+    }
+
     /// Get the current display refresh rate of the device. For MDA, this is a fixed value.
-    fn get_refresh_rate(&self) -> f32 {
+    fn refresh_rate(&self) -> f32 {
         50.0
+    }
+
+    /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
+    fn start_address(&self) -> u16 {
+        self.crtc.start_address()
     }
 
     fn is_40_columns(&self) -> bool {
@@ -185,16 +162,11 @@ impl VideoCard for MDACard {
     }
 
     #[inline]
-    fn is_graphics_mode(&self) -> bool {
+    fn is_in_graphics_mode(&self) -> bool {
         self.mode_graphics
     }
 
-    /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
-    fn get_start_address(&self) -> u16 {
-        self.crtc.start_address()
-    }
-
-    fn get_cursor_info(&self) -> CursorInfo {
+    fn cursor_info(&self) -> CursorInfo {
         let addr = self.get_cursor_address();
 
         match self.display_mode {
@@ -220,11 +192,7 @@ impl VideoCard for MDACard {
         }
     }
 
-    fn get_clock_divisor(&self) -> u32 {
-        1
-    }
-
-    fn get_current_font(&self) -> Option<FontInfo> {
+    fn current_font(&self) -> Option<FontInfo> {
         Some(FontInfo {
             w: MDA_CHAR_CLOCK as u32,
             h: CRTC_FONT_HEIGHT as u32,
@@ -232,64 +200,22 @@ impl VideoCard for MDACard {
         })
     }
 
-    fn get_character_height(&self) -> u8 {
+    fn character_height(&self) -> u8 {
         self.crtc.reg[9] + 1
     }
 
-    fn get_palette(&self) -> Option<Vec<[u8; 4]>> {
+    fn palette(&self) -> Option<Vec<[u8; 4]>> {
         None
     }
 
-    // /// Return the current palette number, intensity attribute bit, and alt color
-    // fn get_cga_palette(&self) -> (CGAPalette, bool) {
-    //     let intensity = self.cc_register & CC_BRIGHT_BIT != 0;
-    //
-    //     // Get background color
-    //     let alt_color = match self.cc_register & 0x0F {
-    //         0b0000 => CGAColor::Black,
-    //         0b0001 => CGAColor::Blue,
-    //         0b0010 => CGAColor::Green,
-    //         0b0011 => CGAColor::Cyan,
-    //         0b0100 => CGAColor::Red,
-    //         0b0101 => CGAColor::Magenta,
-    //         0b0110 => CGAColor::Brown,
-    //         0b0111 => CGAColor::White,
-    //         0b1000 => CGAColor::BlackBright,
-    //         0b1001 => CGAColor::BlueBright,
-    //         0b1010 => CGAColor::GreenBright,
-    //         0b1011 => CGAColor::CyanBright,
-    //         0b1100 => CGAColor::RedBright,
-    //         0b1101 => CGAColor::MagentaBright,
-    //         0b1110 => CGAColor::Yellow,
-    //         _ => CGAColor::WhiteBright,
-    //     };
-    //
-    //     // Are we in high res mode?
-    //     if self.mode_hires_gfx {
-    //         return (CGAPalette::Monochrome(alt_color), true);
-    //     }
-    //
-    //     let mut palette = match self.cc_register & CC_PALETTE_BIT != 0 {
-    //         true => CGAPalette::MagentaCyanWhite(alt_color),
-    //         false => CGAPalette::RedGreenYellow(alt_color),
-    //     };
-    //
-    //     // Check for 'hidden' palette - Black & White mode bit in lowres graphics selects Red/Cyan palette
-    //     if self.mode_bw && self.mode_graphics && !self.mode_hires_gfx {
-    //         palette = CGAPalette::RedCyanWhite(alt_color);
-    //     }
-    //
-    //     (palette, intensity)
-    // }
-
     #[rustfmt::skip]
-    fn get_videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
+    fn videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
         let mut map = HashMap::new();
 
         let mut general_vec = Vec::new();
 
-        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?} ({:?})", self.get_video_type(), self.subtype))));
-        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.get_display_mode()))));
+        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?} ({:?})", self.video_type(), self.subtype))));
+        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.display_mode()))));
         general_vec.push(("Video Enable:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode_enable))));
         general_vec.push(("Clock Divisor:".to_string(), VideoCardStateEntry::String(format!("{}", self.clock_divisor))));
         general_vec.push(("Frame Count:".to_string(), VideoCardStateEntry::String(format!("{}", self.frame_count))));
@@ -336,6 +262,48 @@ impl VideoCard for MDACard {
 
         map
     }
+
+    // /// Return the current palette number, intensity attribute bit, and alt color
+    // fn get_cga_palette(&self) -> (CGAPalette, bool) {
+    //     let intensity = self.cc_register & CC_BRIGHT_BIT != 0;
+    //
+    //     // Get background color
+    //     let alt_color = match self.cc_register & 0x0F {
+    //         0b0000 => CGAColor::Black,
+    //         0b0001 => CGAColor::Blue,
+    //         0b0010 => CGAColor::Green,
+    //         0b0011 => CGAColor::Cyan,
+    //         0b0100 => CGAColor::Red,
+    //         0b0101 => CGAColor::Magenta,
+    //         0b0110 => CGAColor::Brown,
+    //         0b0111 => CGAColor::White,
+    //         0b1000 => CGAColor::BlackBright,
+    //         0b1001 => CGAColor::BlueBright,
+    //         0b1010 => CGAColor::GreenBright,
+    //         0b1011 => CGAColor::CyanBright,
+    //         0b1100 => CGAColor::RedBright,
+    //         0b1101 => CGAColor::MagentaBright,
+    //         0b1110 => CGAColor::Yellow,
+    //         _ => CGAColor::WhiteBright,
+    //     };
+    //
+    //     // Are we in high res mode?
+    //     if self.mode_hires_gfx {
+    //         return (CGAPalette::Monochrome(alt_color), true);
+    //     }
+    //
+    //     let mut palette = match self.cc_register & CC_PALETTE_BIT != 0 {
+    //         true => CGAPalette::MagentaCyanWhite(alt_color),
+    //         false => CGAPalette::RedGreenYellow(alt_color),
+    //     };
+    //
+    //     // Check for 'hidden' palette - Black & White mode bit in lowres graphics selects Red/Cyan palette
+    //     if self.mode_bw && self.mode_graphics && !self.mode_hires_gfx {
+    //         palette = CGAPalette::RedCyanWhite(alt_color);
+    //     }
+    //
+    //     (palette, intensity)
+    // }
 
     fn run(&mut self, time: DeviceRunTimeUnit, _pic: &mut Option<Box<Pic>>, _cpumem: Option<&[u8]>) {
         /*
@@ -453,24 +421,56 @@ impl VideoCard for MDACard {
         // self.slot_idx = 0;
     }
 
+    /// Tick the MDA the specified number of video clock cycles.
+    fn debug_tick(&mut self, ticks: u32, _cpumem: Option<&[u8]>) {
+        match self.clock_mode {
+            ClockingMode::Character | ClockingMode::Dynamic => {
+                let pixel_ticks = ticks % MDA_CHAR_CLOCK as u32;
+                let char_ticks = ticks / MDA_CHAR_CLOCK as u32;
+
+                assert_eq!(ticks, pixel_ticks + (char_ticks * 9));
+
+                for _ in 0..pixel_ticks {
+                    self.tick();
+                }
+                for _ in 0..char_ticks {
+                    self.tick_hchar();
+                }
+            }
+            ClockingMode::Cycle => {
+                for _ in 0..ticks {
+                    self.tick();
+                }
+            }
+            _ => {}
+        }
+
+        log::warn!(
+            "debug_tick(): new cur_screen_cycles: {} beam_x: {} beam_y: {}",
+            self.cur_screen_cycles,
+            self.beam_x,
+            self.beam_y
+        );
+    }
+
     fn reset(&mut self) {
         log::debug!("Resetting");
         self.reset_private();
     }
 
-    fn get_pixel(&self, _x: u32, _y: u32) -> &[u8] {
-        &DUMMY_PIXEL
-    }
-
-    fn get_pixel_raw(&self, _x: u32, _y: u32) -> u8 {
+    fn pixel_raw(&self, _x: u32, _y: u32) -> u8 {
         0
     }
 
-    fn get_plane_slice(&self, _plane: usize) -> &[u8] {
+    fn pixel(&self, _x: u32, _y: u32) -> &[u8] {
+        &DUMMY_PIXEL
+    }
+
+    fn plane_slice(&self, _plane: usize) -> &[u8] {
         &DUMMY_PLANE
     }
 
-    fn get_frame_count(&self) -> u64 {
+    fn frame_count(&self) -> u64 {
         self.frame_count
     }
 

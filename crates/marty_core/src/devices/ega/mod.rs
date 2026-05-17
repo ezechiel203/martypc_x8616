@@ -1245,7 +1245,7 @@ impl EGACard {
 
     pub fn update_char_tick(&mut self) -> bool {
         let mut did_vsync = false;
-        self.vma = self.crtc.tick(self.get_clock_divisor()) as usize;
+        self.vma = self.crtc.tick(self.clock_divisor()) as usize;
         if self.crtc.status.begin_vsync {
             self.do_vsync();
             did_vsync = true;

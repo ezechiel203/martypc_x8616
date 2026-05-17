@@ -204,7 +204,7 @@ pub fn process_update(emu: &mut Emulator, tm: &mut TimestepManager, elwt: &Event
 
             // Check if any videocard has resized and handle it
             emuc.machine.for_each_videocard(|vci| {
-                let extents = vci.card.get_display_extents();
+                let extents = vci.card.display_extents();
                 // Resize the card.
                 if let Err(_) = emuc.dm.on_card_resized(&vci.id, &extents) {
                     log::error!("Error resizing videocard");

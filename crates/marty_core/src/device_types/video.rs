@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -23,16 +23,16 @@
     DEALINGS IN THE SOFTWARE.
 
     --------------------------------------------------------------------------
-
-    device_types::mod.rs
 */
 
-//! Module containing device-specific types.
+pub enum VideoSyncPolarity {
+    Negative,
+    Positive,
+}
 
-pub mod chs;
-pub mod disk;
-pub mod fdc;
-pub mod geometry;
-pub mod hdc;
-pub mod keyboard;
-pub mod video;
+pub struct VideoSyncState {
+    pub vsync: bool,
+    pub vsync_polarity: VideoSyncPolarity,
+    pub hsync: bool,
+    pub hsync_polarity: VideoSyncPolarity,
+}

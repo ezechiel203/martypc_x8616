@@ -1038,7 +1038,7 @@ impl<'p> DisplayManager<EFrameBackend, GuiRenderContext, ViewportId, ViewportId,
             let vtc = resolve_dtc_mut!(vtc);
             let mut vtype = None;
             if let Some(vid) = vtc.card_id {
-                vtype = machine.bus().video(&vid).and_then(|card| Some(card.get_video_type()));
+                vtype = machine.bus().video(&vid).and_then(|card| Some(card.video_type()));
             }
 
             let mut render_time = Duration::from_secs(0);

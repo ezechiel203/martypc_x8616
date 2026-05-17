@@ -268,7 +268,7 @@ impl MartyApp {
         // Find the maximum refresh rate of all video cards
         let mut highest_rate = 50.0;
         for card in cardlist.iter() {
-            let rate = emu.machine.bus().video(&card).unwrap().get_refresh_rate();
+            let rate = emu.machine.bus().video(&card).unwrap().refresh_rate();
             if rate > highest_rate {
                 highest_rate = rate;
             }

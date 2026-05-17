@@ -150,7 +150,7 @@ pub fn handle_egui_event(
                     GuiEnum::DisplayAperture(aperture) => {
                         if let Some(vid) = dm.set_display_aperture(*dth, *aperture).ok().flatten() {
                             if let Some(video_card) = emu.machine.bus().video(&vid) {
-                                if let Err(e) = dm.on_card_resized(&vid, video_card.get_display_extents()) {
+                                if let Err(e) = dm.on_card_resized(&vid, video_card.display_extents()) {
                                     log::error!("Failed to set display aperture for display target: {:?}", e);
                                 }
                             }

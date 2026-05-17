@@ -89,7 +89,7 @@ pub fn process_update(emu: &mut Emulator, dm: &mut EFrameDisplayManager, tm: &mu
                 cpu_cycles: emuc.machine.cpu_cycles(),
                 cpu_instructions: emuc.machine.cpu_instructions(),
                 system_ticks: emuc.machine.system_ticks(),
-                emu_frames: emuc.machine.primary_videocard().map(|vc| vc.get_frame_count()),
+                emu_frames: emuc.machine.primary_videocard().map(|vc| vc.frame_count()),
             }
         },
         |emuc, cycles| {
@@ -359,7 +359,7 @@ pub fn process_update(emu: &mut Emulator, dm: &mut EFrameDisplayManager, tm: &mu
 
             // Check if any videocard has resized and handle it
             emuc.machine.for_each_videocard(|vci| {
-                let extents = vci.card.get_display_extents();
+                let extents = vci.card.display_extents();
                 // Resize the card.
                 if let Err(_) = dmc.on_card_resized(&vci.id, &extents) {
                     log::error!("Error resizing videocard");

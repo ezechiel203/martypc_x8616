@@ -310,7 +310,7 @@ impl MartyApp {
         // Find the maximum refresh rate of all video cards
         let mut highest_rate = 50.0;
         for card in cardlist.iter() {
-            let rate = emu.machine.bus().video(&card).unwrap().get_refresh_rate();
+            let rate = emu.machine.bus().video(&card).unwrap().refresh_rate();
             if rate > highest_rate {
                 highest_rate = rate;
             }
@@ -446,7 +446,7 @@ impl MartyApp {
         // Resize each video card to match the starting display extents.
         for vid in vid_list.iter() {
             if let Some(card) = emu.machine.bus().video(vid) {
-                let extents = card.get_display_extents();
+                let extents = card.display_extents();
 
                 //assert_eq!(extents.double_scan, true);
                 if let Err(_e) = display_manager.on_card_resized(vid, extents) {

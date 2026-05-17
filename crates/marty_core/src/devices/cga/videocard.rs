@@ -79,19 +79,19 @@ impl VideoCard for CGACard {
         }
     }
 
-    fn get_video_type(&self) -> VideoType {
+    fn video_type(&self) -> VideoType {
         VideoType::CGA
     }
 
-    fn get_render_mode(&self) -> RenderMode {
+    fn render_mode(&self) -> RenderMode {
         RenderMode::Direct
     }
 
-    fn get_render_depth(&self) -> RenderBpp {
+    fn render_depth(&self) -> RenderBpp {
         RenderBpp::Four
     }
 
-    fn get_display_mode(&self) -> DisplayMode {
+    fn display_mode(&self) -> DisplayMode {
         self.display_mode
     }
 
@@ -104,7 +104,7 @@ impl VideoCard for CGACard {
         self.clock_mode = mode;
     }
 
-    fn get_display_size(&self) -> (u32, u32) {
+    fn display_size(&self) -> (u32, u32) {
         // CGA supports a single fixed 8x8 font. The size of the displayed window
         // is always HorizontalDisplayed * (VerticalDisplayed * (MaximumScanlineAddress + 1))
         // (Excepting fancy CRTC tricks that delay vsync)
@@ -117,7 +117,7 @@ impl VideoCard for CGACard {
         (width, height)
     }
 
-    fn get_display_extents(&self) -> &DisplayExtents {
+    fn display_extents(&self) -> &DisplayExtents {
         &self.extents
     }
 
@@ -125,12 +125,12 @@ impl VideoCard for CGACard {
         CGA_APERTURE_DESCS.to_vec()
     }
 
-    fn get_display_apertures(&self) -> Vec<DisplayAperture> {
+    fn display_apertures(&self) -> Vec<DisplayAperture> {
         self.extents.apertures.clone()
     }
 
     #[inline]
-    fn get_overscan_color(&self) -> u8 {
+    fn overscan_color(&self) -> u8 {
         if self.mode_hires_gfx {
             // In highres mode, the color control register controls the foreground color, not overscan
             // so overscan must be black.
@@ -141,7 +141,7 @@ impl VideoCard for CGACard {
     }
 
     /// Return the u8 slice representing the requested buffer type.
-    fn get_buf(&self, buf_select: BufferSelect) -> &[u8] {
+    fn buf(&self, buf_select: BufferSelect) -> &[u8] {
         match buf_select {
             BufferSelect::Back => &self.buf[self.back_buf][..],
             BufferSelect::Front => &self.buf[self.front_buf][..],
@@ -149,15 +149,15 @@ impl VideoCard for CGACard {
     }
 
     /// Return the u8 slice representing the front buffer of the device. (Direct rendering only)
-    fn get_display_buf(&self) -> &[u8] {
+    fn display_buf(&self) -> &[u8] {
         &self.buf[self.front_buf][..]
     }
 
-    fn get_clock_divisor(&self) -> u32 {
+    fn clock_divisor(&self) -> u32 {
         1
     }
 
-    fn get_sync(&self) -> (bool, bool, bool, bool) {
+    fn sync(&self) -> (bool, bool, bool, bool) {
         (
             self.in_crtc_vblank,
             self.in_crtc_hblank,
@@ -167,29 +167,29 @@ impl VideoCard for CGACard {
     }
 
     /// Get the position of the electron beam.
-    fn get_beam_pos(&self) -> Option<(u32, u32)> {
+    fn beam_pos(&self) -> Option<(u32, u32)> {
         Some((self.beam_x, self.beam_y))
     }
 
     /// Get the current scanline being rendered.
-    fn get_scanline(&self) -> u32 {
+    fn scanline(&self) -> u32 {
         self.scanline
     }
 
     /// Return whether to double scanlines for this video device. For CGA, this is always true.
-    fn get_scanline_double(&self) -> bool {
+    fn is_scanline_doubled(&self) -> bool {
         true
     }
 
     /// Get the current display refresh rate of the device. For CGA, this is always the same value.
     /// On real hardware, this is something slightly less than 60Hz, we set to 60Hz here for 
     /// simplicity.
-    fn get_refresh_rate(&self) -> f32 {
+    fn refresh_rate(&self) -> f32 {
         60.0
     }
 
     /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
-    fn get_start_address(&self) -> u16 {
+    fn start_address(&self) -> u16 {
         (self.crtc_start_address_ho as u16) << 8 | self.crtc_start_address_lo as u16
     }
 
@@ -207,11 +207,11 @@ impl VideoCard for CGACard {
     }
 
     #[inline]
-    fn is_graphics_mode(&self) -> bool {
+    fn is_in_graphics_mode(&self) -> bool {
         self.mode_graphics
     }
 
-    fn get_cursor_info(&self) -> CursorInfo {
+    fn cursor_info(&self) -> CursorInfo {
         let addr = self.get_cursor_address();
 
         match self.display_mode {
@@ -245,7 +245,7 @@ impl VideoCard for CGACard {
         }
     }
 
-    fn get_current_font(&self) -> Option<FontInfo> {
+    fn current_font(&self) -> Option<FontInfo> {
         Some(FontInfo {
             w: CGA_HCHAR_CLOCK as u32,
             h: CRTC_FONT_HEIGHT as u32,
@@ -253,22 +253,22 @@ impl VideoCard for CGACard {
         })
     }
 
-    fn get_character_height(&self) -> u8 {
+    fn character_height(&self) -> u8 {
         self.crtc_maximum_scanline_address + 1
     }
 
-    fn get_palette(&self) -> Option<Vec<[u8; 4]>> {
+    fn palette(&self) -> Option<Vec<[u8; 4]>> {
         None
     }
 
     #[rustfmt::skip]
-    fn get_videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
+    fn videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
         let mut map = HashMap::new();
 
         let mut general_vec = Vec::new();
 
-        general_vec.push((String::from("Adapter Type:"), VideoCardStateEntry::String(format!("{:?}", self.get_video_type()))));
-        general_vec.push((String::from("Display Mode:"), VideoCardStateEntry::String(format!("{:?}", self.get_display_mode()))));
+        general_vec.push((String::from("Adapter Type:"), VideoCardStateEntry::String(format!("{:?}", self.video_type()))));
+        general_vec.push((String::from("Display Mode:"), VideoCardStateEntry::String(format!("{:?}", self.display_mode()))));
         general_vec.push((String::from("Video Enable:"), VideoCardStateEntry::String(format!("{:?}", self.mode_enable))));
         general_vec.push((String::from("Clock Divisor:"), VideoCardStateEntry::String(format!("{}", self.clock_divisor))));
         general_vec.push((String::from("Frame Count:"), VideoCardStateEntry::String(format!("{}", self.frame_count))));
@@ -576,19 +576,19 @@ impl VideoCard for CGACard {
         self.reset_private();
     }
 
-    fn get_pixel_raw(&self, _x: u32, _y: u32) -> u8 {
+    fn pixel_raw(&self, _x: u32, _y: u32) -> u8 {
         0
     }
 
-    fn get_pixel(&self, _x: u32, _y: u32) -> &[u8] {
+    fn pixel(&self, _x: u32, _y: u32) -> &[u8] {
         &DUMMY_PIXEL
     }
 
-    fn get_plane_slice(&self, _plane: usize) -> &[u8] {
+    fn plane_slice(&self, _plane: usize) -> &[u8] {
         &DUMMY_PLANE
     }
 
-    fn get_frame_count(&self) -> u64 {
+    fn frame_count(&self) -> u64 {
         self.frame_count
     }
 

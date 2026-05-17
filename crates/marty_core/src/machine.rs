@@ -1032,7 +1032,7 @@ impl Machine {
         self.cpu
             .bus_mut()
             .primary_video_mut()
-            .map(|video_card| video_card.get_videocard_string_state())
+            .map(|video_card| video_card.videocard_string_state())
     }
 
     pub fn get_error_str(&self) -> &Option<String> {
