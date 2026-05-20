@@ -1089,6 +1089,14 @@ impl EgaCrtc {
         self.crtc_horizontal_display_end
     }
 
+    pub fn horizontal_displayed_pixels(&self, clock_divisor: u32) -> u32 {
+        (self.crtc_horizontal_display_end as u32 + 1) * 8 * clock_divisor
+    }
+
+    pub fn horizontal_total_pixels(&self, clock_divisor: u32) -> u32 {
+        (self.crtc_horizontal_total as u32 + 2) * 8 * clock_divisor
+    }
+
     pub fn vertical_display_end(&self) -> u16 {
         self.crtc_vertical_display_end
     }

@@ -39,6 +39,11 @@ impl VideoCard for MDACard {
                 log::debug!("VideoOption::DebugDraw set to: {}", state);
                 self.debug_draw = state;
             }
+            VideoOption::EmulateSync(state) => {
+                log::debug!("VideoOption::EmulateSync set to: {}", state);
+                self.emulate_sync = state;
+                self.monitor.set_enabled(state);
+            }
             _ => {
                 log::warn!("VideoOption::{:?} not supported for MDA", opt);
             }
@@ -223,6 +228,9 @@ impl VideoCard for MDACard {
 
         let crtc_vec = self.crtc.get_reg_state();
         map.insert("CRTC".to_string(), crtc_vec);
+
+        let monitor_vec = self.monitor.debug_state();
+        map.insert("Monitor".to_string(), monitor_vec);
 
         let crtc_counter_vec = self.crtc.get_counter_state();
         let mut internal_vec = Vec::new();

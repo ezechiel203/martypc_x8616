@@ -36,7 +36,12 @@ use std::{collections::HashMap, path::Path};
 
 impl VideoCard for EGACard {
     fn sync(&self) -> (bool, bool, bool, bool) {
-        (false, false, false, false)
+        (
+            self.crtc.status.vblank,
+            self.crtc.status.hblank,
+            self.crtc.status.den,
+            self.crtc.status.hborder | self.crtc.status.vborder,
+        )
     }
 
     fn set_video_option(&mut self, opt: VideoOption) {
@@ -44,6 +49,10 @@ impl VideoCard for EGACard {
             VideoOption::DebugDraw(state) => {
                 log::debug!("VideoOption::DebugDraw set to: {}", state);
                 self.debug_draw = state;
+            }
+            VideoOption::EmulateSync(state) => {
+                log::debug!("VideoOption::EmulateSync set to: {}", state);
+                self.monitor.set_enabled(state);
             }
             _ => {
                 log::warn!("VideoOption::{:?} not supported for EGA", opt);
@@ -234,6 +243,7 @@ impl VideoCard for EGACard {
         ));
 
         map.insert("General".to_string(), general_vec);
+        map.insert("Monitor".to_string(), self.monitor.debug_state());
         map.insert("CRTC".to_string(), self.crtc.get_state());
 
         let mut external_vec = Vec::new();

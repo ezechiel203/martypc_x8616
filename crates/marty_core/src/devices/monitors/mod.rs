@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -23,14 +23,10 @@
     DEALINGS IN THE SOFTWARE.
 
     --------------------------------------------------------------------------
-
-    devices::implementations::traits.rs
-
-    Module to organize all device traits
-
 */
 
-pub mod keyboard;
-pub mod monitor;
-pub mod sounddevice;
-pub mod videocard;
+//! Monitor module
+
+pub mod ega;
+pub mod fifteen_hertz;
+pub mod mda;

@@ -184,7 +184,7 @@ pub enum VideoOption {
     // (Currently only CGA).
     EnableSnow(bool),
     // Enable video sync emulation for cards that support it.
-    EmulateSync { v: bool, h: bool },
+    EmulateSync(bool),
 }
 
 // This enum determines the rendering method of the given videocard device.
@@ -329,7 +329,7 @@ pub struct DisplayApertureDesc {
 /// horizontal and vertical offsets from the origin (0,0)
 /// Additionally, a debug flag is set to indicate whether an aperture should render debugging
 /// information along with pixel data.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct DisplayAperture {
     pub w: u32,
     pub h: u32,

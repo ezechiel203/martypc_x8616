@@ -53,6 +53,7 @@ pub mod lpt_card;
 pub mod lpt_port;
 pub mod mc6845;
 pub mod mda;
+pub mod monitors;
 pub mod mouse;
 pub mod null_sound;
 pub mod pic;

@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -23,14 +23,41 @@
     DEALINGS IN THE SOFTWARE.
 
     --------------------------------------------------------------------------
-
-    devices::implementations::traits.rs
-
-    Module to organize all device traits
-
 */
+use enum_dispatch::enum_dispatch;
 
-pub mod keyboard;
-pub mod monitor;
-pub mod sounddevice;
-pub mod videocard;
+use crate::{
+    device_traits::videocard::VideoCardStateEntry,
+    devices::monitors::{ega::EgaMonitor, fifteen_hertz::FifteenHertzMonitor, mda::MdaMonitor},
+    video_pll::SyncPolarity,
+};
+
+#[enum_dispatch]
+pub enum MonitorDispatch {
+    MdaMonitor,
+    FifteenHertzMonitor,
+    EgaMonitor,
+}
+
+pub type MonitorSyncCallback<'a> = &'a mut dyn FnMut();
+
+/// Trait for monitor / video PLL emulation.
+#[enum_dispatch(MonitorDispatch)]
+pub trait Monitor {
+    fn run(
+        &mut self,
+        ticks_elapsed: u32,
+        hsync: bool,
+        vsync: bool,
+        h_callback: MonitorSyncCallback<'_>,
+        v_callback: MonitorSyncCallback<'_>,
+    );
+
+    fn set_enabled(&mut self, enabled: bool);
+
+    fn set_sync_polarities(&mut self, hsync: SyncPolarity, vsync: SyncPolarity);
+
+    fn hsync_frequency(&self) -> Option<f64>;
+
+    fn debug_state(&self) -> Vec<(String, VideoCardStateEntry)>;
+}

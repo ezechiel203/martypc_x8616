@@ -69,12 +69,10 @@ impl VideoCard for CGACard {
                 log::debug!("VideoOption::DebugDraw set to: {}", state);
                 self.debug_draw = state;
             }
-            VideoOption::EmulateSync { v: v_state, h: h_state } => {
-                log::debug!("VideoOption::EmulateSync set to: v: {}, h: {}", v_state, h_state);
-                self.emulate_vsync = v_state;
-                self.vertical_pll.enable(v_state);
-                self.emulate_hsync = h_state;
-                self.horizontal_pll.enable(h_state);
+            VideoOption::EmulateSync(state) => {
+                log::debug!("VideoOption::EmulateSync set to: {}", state);
+                self.emulate_sync = state;
+                self.monitor.set_enabled(state);
             }
         }
     }
@@ -162,7 +160,7 @@ impl VideoCard for CGACard {
             self.in_crtc_vblank,
             self.in_crtc_hblank,
             self.in_display_area,
-            self.border
+            self.border,
         )
     }
 
@@ -182,7 +180,7 @@ impl VideoCard for CGACard {
     }
 
     /// Get the current display refresh rate of the device. For CGA, this is always the same value.
-    /// On real hardware, this is something slightly less than 60Hz, we set to 60Hz here for 
+    /// On real hardware, this is something slightly less than 60Hz, we set to 60Hz here for
     /// simplicity.
     fn refresh_rate(&self) -> f32 {
         60.0
@@ -298,15 +296,7 @@ impl VideoCard for CGACard {
 
         map.insert("CRTC".to_string(), crtc_vec);
 
-        let mut monitor_vec = Vec::new();
-
-        monitor_vec.push((String::from("hhold:"), VideoCardStateEntry::String(format!("{}", self.horizontal_pll.is_locked()))));
-        monitor_vec.push((String::from("h_pll_freq:"), VideoCardStateEntry::String(format!("{:.2}Hz", self.horizontal_pll.current_freq()))));
-        monitor_vec.push((String::from("h_pll_phase:"), VideoCardStateEntry::String(format!("{:.3}", self.horizontal_pll.sync_phase()))));
-        monitor_vec.push((String::from("h_pll_error:"), VideoCardStateEntry::String(format!("{:.3}", self.horizontal_pll.error()))));
-        monitor_vec.push((String::from("vhold:"), VideoCardStateEntry::String(format!("{}", self.vertical_pll.is_locked()))));
-        monitor_vec.push((String::from("v_pll_freq:"), VideoCardStateEntry::String(format!("{:.2}Hz", self.vertical_pll.current_freq()))));
-        monitor_vec.push((String::from("v_pll_phase:"), VideoCardStateEntry::String(format!("{:.3}", self.vertical_pll.sync_phase()))));
+        let mut monitor_vec = self.monitor.debug_state();
         monitor_vec.push((String::from("v_flybacks:"), VideoCardStateEntry::String(format!("{}", self.v_flyback_count))));
         monitor_vec.push((String::from("beam_x:"), VideoCardStateEntry::String(format!("{}", self.beam_x))));
         monitor_vec.push((String::from("beam_y:"), VideoCardStateEntry::String(format!("{}", self.beam_y))));
@@ -629,13 +619,14 @@ impl VideoCard for CGACard {
                 self.mem[row_addr..((row_addr + (columns * 2)) & 0x3fff)]
                     .iter()
                     .step_by(2)
-                    .filter_map(|&byte| {
+                    .map(|&byte| {
                         let ascii_byte = match byte {
                             0x00..=0x1F => 0x20,
                             0x80..=0xFF => 0x20,
                             _ => byte,
                         };
-                        Some(ascii_byte as char)
+
+                        ascii_byte as char
                     }),
             );
             row_addr += columns * 2;

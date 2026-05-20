@@ -25,6 +25,10 @@
     --------------------------------------------------------------------------
 */
 
+pub const NTSC_CLOCK: f64 = 315.0 / 22.0;
+pub const NTSC_HORIZ_REFRESH: f64 = NTSC_CLOCK / 912.0 * 1_000_000.0;
+pub const NTSC_VERT_REFRESH: f64 = NTSC_CLOCK / (912.0 * 262.0) * 1_000_000.0;
+
 pub enum VideoSyncPolarity {
     Negative,
     Positive,
