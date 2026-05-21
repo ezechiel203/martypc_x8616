@@ -201,13 +201,25 @@ impl Intel808x {
         self.clear_flag(Flag::Overflow);
 
         match (old_af, old_cf) {
-            (false, false) => if let 0x9A..=0xDF = self.a.l() { self.set_flag(Flag::Overflow) },
+            (false, false) => {
+                if let 0x9A..=0xDF = self.a.l() {
+                    self.set_flag(Flag::Overflow)
+                }
+            }
             (true, false) => match self.a.l() {
                 0x80..=0x85 | 0xA0..=0xE5 => self.set_flag(Flag::Overflow),
                 _ => {}
             },
-            (false, true) => if let 0x80..=0xDF = self.a.l() { self.set_flag(Flag::Overflow) },
-            (true, true) => if let 0x80..=0xE5 = self.a.l() { self.set_flag(Flag::Overflow) },
+            (false, true) => {
+                if let 0x80..=0xDF = self.a.l() {
+                    self.set_flag(Flag::Overflow)
+                }
+            }
+            (true, true) => {
+                if let 0x80..=0xE5 = self.a.l() {
+                    self.set_flag(Flag::Overflow)
+                }
+            }
         }
 
         self.clear_flag(Flag::Carry);

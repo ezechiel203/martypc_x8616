@@ -186,10 +186,12 @@ pub struct GamePortConfig {
 #[derive(Clone, Debug, Deserialize)]
 pub struct VideoCardConfig {
     #[serde(rename = "type")]
-    pub video_type:    VideoType,
+    pub video_type: VideoType,
     #[serde(rename = "subtype")]
     pub video_subtype: Option<VideoCardSubType>,
-    pub dip_switch:    Option<u8>,
+    pub dip_switch: Option<u8>,
+    #[serde(default = "_default_true")]
+    pub monitor_emulation: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]

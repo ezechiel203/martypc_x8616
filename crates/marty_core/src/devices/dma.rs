@@ -83,8 +83,7 @@ pub enum PriorityMode {
     Rotating,
 }
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum ServiceMode {
     #[default]
     Demand,
@@ -92,16 +91,14 @@ pub enum ServiceMode {
     Block,
     Cascade,
 }
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum AddressMode {
     #[default]
     Increment,
     Decrement,
 }
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum TransferType {
     #[default]
     Verify,
@@ -109,7 +106,6 @@ pub enum TransferType {
     Read,
     Illegal,
 }
-
 
 #[derive(Default)]
 pub struct DMAChannel {

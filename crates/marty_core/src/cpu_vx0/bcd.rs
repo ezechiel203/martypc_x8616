@@ -258,13 +258,25 @@ impl NecVx0 {
         };
 
         match (old_af, old_cf) {
-            (false, false) => if let 0x9A..=0xDF = result { overflow = true },
+            (false, false) => {
+                if let 0x9A..=0xDF = result {
+                    overflow = true
+                }
+            }
             (true, false) => match result {
                 0x80..=0x85 | 0xA0..=0xE5 => overflow = true,
                 _ => {}
             },
-            (false, true) => if let 0x80..=0xDF = result { overflow = true },
-            (true, true) => if let 0x80..=0xE5 = result { overflow = true },
+            (false, true) => {
+                if let 0x80..=0xDF = result {
+                    overflow = true
+                }
+            }
+            (true, true) => {
+                if let 0x80..=0xE5 = result {
+                    overflow = true
+                }
+            }
         }
 
         if (result & 0x0F) > 9 || aux_carry {
@@ -302,13 +314,25 @@ impl NecVx0 {
         self.clear_flag(Flag::Overflow);
 
         match (old_af, old_cf) {
-            (false, false) => if let 0x9A..=0xDF = self.a.l() { self.set_flag(Flag::Overflow) },
+            (false, false) => {
+                if let 0x9A..=0xDF = self.a.l() {
+                    self.set_flag(Flag::Overflow)
+                }
+            }
             (true, false) => match self.a.l() {
                 0x80..=0x85 | 0xA0..=0xE5 => self.set_flag(Flag::Overflow),
                 _ => {}
             },
-            (false, true) => if let 0x80..=0xDF = self.a.l() { self.set_flag(Flag::Overflow) },
-            (true, true) => if let 0x80..=0xE5 = self.a.l() { self.set_flag(Flag::Overflow) },
+            (false, true) => {
+                if let 0x80..=0xDF = self.a.l() {
+                    self.set_flag(Flag::Overflow)
+                }
+            }
+            (true, true) => {
+                if let 0x80..=0xE5 = self.a.l() {
+                    self.set_flag(Flag::Overflow)
+                }
+            }
         }
 
         self.clear_flag(Flag::Carry);

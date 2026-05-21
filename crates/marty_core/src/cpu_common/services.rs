@@ -52,7 +52,6 @@ pub struct CPUDebugServices {
     pub listing: BTreeMap<(u16, u16), ListingEntry>,
 }
 
-
 impl CPUDebugServices {
     pub fn new(listing_path: Option<PathBuf>) -> Self {
         CPUDebugServices {

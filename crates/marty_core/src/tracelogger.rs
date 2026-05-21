@@ -38,15 +38,13 @@ use std::{
     path::Path,
 };
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum TraceLogger {
     FileWriter(BufWriter<File>),
     Console,
     #[default]
     None,
 }
-
 
 impl TraceLogger {
     pub fn from_filename<S: AsRef<Path>>(filename: S) -> Self {

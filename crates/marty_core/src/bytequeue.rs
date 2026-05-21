@@ -31,8 +31,7 @@
     emulated processor instruction queue.
 */
 
-#[derive(Copy, Clone)]
-#[derive(Default)]
+#[derive(Copy, Clone, Default)]
 pub enum QueueType {
     #[default]
     First,
@@ -44,7 +43,6 @@ pub enum QueueReader {
     Biu,
     Eu,
 }
-
 
 pub trait ByteQueue {
     fn seek(&mut self, pos: usize);

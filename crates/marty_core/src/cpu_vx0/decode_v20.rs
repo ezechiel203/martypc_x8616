@@ -42,11 +42,27 @@ use crate::cpu_vx0::{modrm::ModRmByte, *};
 
 use crate::{
     bytequeue::*,
-    cpu_vx0::{gdr::GdrEntry},
-    cpu_common::{AddressingMode, Instruction, alu::Xi},
+    cpu_common::{
+        alu::Xi,
+        operands::OperandSize,
+        AddressingMode,
+        Instruction,
+        Mnemonic,
+        OperandType,
+        Segment,
+        OPCODE_PREFIX_0F,
+        OPCODE_PREFIX_CS_OVERRIDE,
+        OPCODE_PREFIX_DS_OVERRIDE,
+        OPCODE_PREFIX_ES_OVERRIDE,
+        OPCODE_PREFIX_LOCK,
+        OPCODE_PREFIX_REP1,
+        OPCODE_PREFIX_REP2,
+        OPCODE_PREFIX_REP3,
+        OPCODE_PREFIX_REP4,
+        OPCODE_PREFIX_SS_OVERRIDE,
+    },
+    cpu_vx0::gdr::GdrEntry,
 };
-use crate::cpu_common::{Mnemonic, Segment, OperandType, OPCODE_PREFIX_ES_OVERRIDE, OPCODE_PREFIX_CS_OVERRIDE, OPCODE_PREFIX_SS_OVERRIDE, OPCODE_PREFIX_DS_OVERRIDE, OPCODE_PREFIX_LOCK, OPCODE_PREFIX_REP1, OPCODE_PREFIX_REP2, OPCODE_PREFIX_REP3, OPCODE_PREFIX_REP4, OPCODE_PREFIX_0F};
-use crate::cpu_common::operands::OperandSize;
 
 #[derive(Copy, Clone, Default, PartialEq)]
 pub enum OperandTemplate {
@@ -113,7 +129,6 @@ macro_rules! inst_skip {
     ($init:ident, $ct:literal) => {
         $init.idx += $ct;
     };
-
 }
 macro_rules! inst {
     ($opcode:literal, $init:ident, $grp:literal, $gdr:literal, $mc:literal, $xi:ident, $m:ident, $o1:expr, $o2:expr) => {
@@ -146,14 +161,14 @@ pub const REGULAR_OPS_LEN: usize = 368;
 pub const TOTAL_OPS_LEN: usize = REGULAR_OPS_LEN + 256;
 
 pub struct TableInitializer {
-    pub idx: usize,
+    pub idx:   usize,
     pub table: [InstTemplate; TOTAL_OPS_LEN],
 }
 
 impl TableInitializer {
     const fn new() -> Self {
         Self {
-            idx: 0,
+            idx:   0,
             table: [InstTemplate::constdefault(); TOTAL_OPS_LEN],
         }
     }
@@ -591,7 +606,7 @@ impl NecVx0 {
     pub fn decode(bytes: &mut impl ByteQueue, peek: bool) -> Result<Instruction, Box<dyn std::error::Error>> {
         let mut operand1_type: OperandType = OperandType::NoOperand;
         let mut operand2_type: OperandType = OperandType::NoOperand;
-        
+
         let mut opcode = bytes.q_read_u8(QueueType::First, QueueReader::Biu);
         let mut size: u32 = 1;
         let mut op_prefixes: u32 = 0;
@@ -608,7 +623,7 @@ impl NecVx0 {
                     // 0F prefixed-instructions exist in table after all regular Intel instructions
                     // Nothing can follow an 0F prefix; so start instruction now. Fetching the
                     // extended opcode counts as a Subsequent write based on queue status flags.
-                    
+
                     // One cycle delay after reading 0F prefix.
                     bytes.wait(1);
                     opcode = bytes.q_read_u8(QueueType::Subsequent, QueueReader::Biu);

@@ -57,8 +57,7 @@ pub struct StopWatchData {
     pub total_duration: u64,
 }
 
-#[derive(Clone)]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct CycleStopWatch {
     pub start: u32,
     pub stop: u32,

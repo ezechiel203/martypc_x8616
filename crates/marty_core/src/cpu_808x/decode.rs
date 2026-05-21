@@ -680,7 +680,7 @@ impl Intel808x {
         // Lookup the opcode in the decode table
         decode_idx = opcode as usize;
         let mut op_lu = &DECODE[decode_idx];
-    
+
         // Prepare to read ModRm
         let mut modrm= ModRmByte::default_ref();
         let mut loaded_modrm = false;

@@ -173,7 +173,8 @@ impl VideoHoldPll {
             if !self.enabled {
                 // PLL is disabled, just honor the input sync pulse.
                 return true;
-            } else if !self.last_sync_active && self.ticks_since_last_sync > (self.target_period_ticks * 0.5) as u64 {
+            }
+            else if !self.last_sync_active && self.ticks_since_last_sync > (self.target_period_ticks * 0.5) as u64 {
                 if self.ticks_since_last_sync != u64::MAX {
                     self.last_period_ticks = self.ticks_since_last_sync as f64;
                 }
@@ -198,7 +199,8 @@ impl VideoHoldPll {
                 if error.abs() < (self.window_size / 2.0) {
                     triggered = true;
                     self.is_locked = true;
-                } else {
+                }
+                else {
                     // Pulse fell outside the window. This represents loss sync and the picture
                     // will begin to roll as the monitor will perform flyback out of phase.
 
@@ -231,7 +233,8 @@ impl VideoHoldPll {
     fn calculate_phase_error(&self) -> f64 {
         if self.vco_phase > 0.5 {
             1.0 - self.vco_phase // Example: phase 0.98 -> error +0.02
-        } else {
+        }
+        else {
             0.0 - self.vco_phase // Example: phase 0.02 -> error -0.02
         }
     }
