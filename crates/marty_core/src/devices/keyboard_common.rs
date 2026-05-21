@@ -38,6 +38,7 @@ use std::{
 
 use crate::{device_types::keyboard::KeyboardType, keys::MartyKey, machine::KeybufferEntry};
 
+use crate::device_traits::keyboard::MartyKeyboard;
 use crate::devices::keyboards::{model_f::ModelF, pcjr::PcJrKeyboard, tandy1000::Tandy1000Keyboard};
 use anyhow::{bail, Result};
 use serde_derive::Deserialize;
@@ -517,6 +518,9 @@ impl Keyboard {
                     scancodes.push(s);
                 }
             }
+            KeyboardType::Pcjr => {
+                scancodes = <PcJrKeyboard as MartyKeyboard>::keycode_to_scancodes(key_code);
+            }
             _ => {
                 unimplemented!();
             }
@@ -760,7 +764,7 @@ impl Keyboard {
     /// Convert a translated scancode sequence to its corresponding keyup sequence.
     fn translate_keyup(&self, kb_type: KeyboardType, translation: &mut [u8]) {
         match kb_type {
-            KeyboardType::ModelF | KeyboardType::Tandy1000 => {
+            KeyboardType::ModelF | KeyboardType::Tandy1000 | KeyboardType::Pcjr => {
                 // Translations should only have one keycode.
                 assert_eq!(translation.len(), 1);
 
