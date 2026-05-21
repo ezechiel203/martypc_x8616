@@ -1089,6 +1089,25 @@ impl FloppyController {
     pub fn handle_data_register_write(&mut self, data: u8) {
         self.last_data_written = data;
         //log::trace!("Data Register Write");
+
+        // PIO write execution phase: route incoming bytes into the transfer buffer
+        // instead of reinterpreting them as a new command. Use in_dma (set per-command
+        // from dor_dma) rather than self.dma — self.dma is the SPECIFY non_dma bit and
+        // can be left at its default (DMA) on PCjr where the BIOS never reissues SPECIFY.
+        if !self.in_dma
+            && self.operation_init
+            && matches!(self.operation, Operation::WriteData(..))
+            && self.xfer_buffer.len() < self.xfer_size_bytes
+        {
+            self.xfer_buffer.push(data);
+            self.pio_byte_count += 1;
+            self.pio_sector_byte_count += 1;
+            if self.pio_bytes_left > 0 {
+                self.pio_bytes_left -= 1;
+            }
+            return;
+        }
+
         if !self.receiving_command {
             let command_byte = CommandByte::from_bytes([data]);
             let command = command_byte.command();
@@ -1604,8 +1623,10 @@ impl FloppyController {
                 self.in_dma = true;
             }
             else {
-                // When not in DMA mode, we can leave MRQ high and let the CPU poll for completion
-                self.mrq = true;
+                // PIO write: hold MRQ low until operation_write_data_pio's first tick has
+                // initialized xfer_size_bytes. Otherwise the CPU could push a data byte that
+                // would be misinterpreted as a new FDC command.
+                self.mrq = false;
                 self.in_dma = false;
             }
 
@@ -2153,6 +2174,122 @@ impl FloppyController {
         }
     }
 
+    fn operation_write_data_pio(
+        &mut self,
+        _bus: &mut BusInterface,
+        h: u8,
+        chs: DiskChs,
+        sector_size: u8,
+        eot: u8,
+        deleted: bool,
+    ) {
+        if self.drives[self.drive_select].write_protected {
+            log::warn!("PIO WriteSector on write-protected disk!");
+            self.last_error = DriveError::WriteProtect;
+            self.send_results_phase(InterruptCode::AbnormalPolling, self.drive_select, chs, sector_size);
+            self.send_interrupt = true;
+            self.operation = Operation::NoOperation;
+            return;
+        }
+
+        let sector_size_bytes = DiskChsn::n_to_bytes(sector_size);
+
+        if !self.operation_init {
+            self.xfer_size_sectors = (eot.saturating_sub(chs.s())) as usize + 1;
+            self.xfer_size_bytes = self.xfer_size_sectors * sector_size_bytes;
+            self.xfer_buffer = Vec::with_capacity(self.xfer_size_bytes);
+            self.pio_bytes_left = self.xfer_size_bytes;
+            self.pio_byte_count = 0;
+            self.pio_sector_byte_count = 0;
+            self.xfer_completed_sectors = 0;
+            self.busy = true;
+            self.dio = IoMode::FromCpu;
+            self.mrq = true;
+            self.operation_init = true;
+            log::trace!(
+                "operation_write_data_pio: initialized for {} sectors ({} bytes)",
+                self.xfer_size_sectors,
+                self.xfer_size_bytes
+            );
+            return;
+        }
+
+        // Wait for CPU to finish writing all data bytes via the data register.
+        if self.xfer_buffer.len() < self.xfer_size_bytes {
+            return;
+        }
+
+        let write_result = self.drives[self.drive_select].command_write_data(
+            h,
+            chs,
+            self.xfer_size_sectors,
+            sector_size,
+            &self.xfer_buffer,
+            false,
+            deleted,
+        );
+
+        match write_result {
+            Ok(write_result) => {
+                if write_result.not_found {
+                    log::warn!(
+                        "operation_write_data_pio(): drive reported sector ID not found"
+                    );
+                    self.send_results_phase(
+                        InterruptCode::AbnormalTermination,
+                        self.drive_select,
+                        chs,
+                        sector_size,
+                    );
+                    self.operation = Operation::NoOperation;
+                    self.send_interrupt = true;
+                    return;
+                }
+
+                let (new_c, new_h, new_s) = self
+                    .selected_drive()
+                    .get_chs_sector_offset(self.xfer_size_sectors, chs)
+                    .into();
+                let new_chs = DiskChs::new(new_c, new_h, new_s);
+
+                self.send_results_phase(
+                    InterruptCode::NormalTermination,
+                    self.drive_select,
+                    new_chs,
+                    sector_size,
+                );
+
+                self.drives[self.drive_select].chsn.set_chs(new_chs);
+
+                log::trace!(
+                    "operation_write_data_pio: completed ({} bytes), new chs: {}",
+                    self.xfer_size_bytes,
+                    new_chs
+                );
+
+                self.operation = Operation::NoOperation;
+                // Do NOT raise an FDC IRQ on successful PIO write completion.
+                // The PCjr BIOS INT 0Eh handler at f000:ef50 force-fails the operation
+                // (sets 40:41 |= 0x80 at f000:ef9c) when an IRQ fires while BIOS is
+                // still in the data-loop range (CS:IP in [ee20..ee66)). The BIOS exits
+                // the loop via NDMA-polling, so the IRQ is unnecessary on success and
+                // matches the existing PIO-read path which also suppresses it.
+                // self.send_interrupt = true;
+            }
+            Err(e) => {
+                log::warn!("operation_write_data_pio: drive write failed: {:?}", e);
+                self.send_results_phase(
+                    InterruptCode::AbnormalTermination,
+                    self.drive_select,
+                    chs,
+                    sector_size,
+                );
+                self.operation = Operation::NoOperation;
+                self.send_interrupt = true;
+            }
+        }
+    }
+
     /// Run the Read Track operation
     fn operation_read_track(
         &mut self,
@@ -2555,12 +2692,19 @@ impl FloppyController {
             Operation::Calibrate | Operation::Seek => {
                 self.operation_seek(us);
             }
-            Operation::ReadData(h, chs, sector_size, track_len, _gap3_len, _data_len) => match self.dma {
+            // Dispatch on in_dma (set per-command from dor_dma). self.dma reflects the SPECIFY
+            // command's non_dma bit, which doesn't account for the DOR DMA enable; using it here
+            // would route to the DMA path on hardware (e.g. PCjr) that has dor_dma=false but
+            // self.dma left true.
+            Operation::ReadData(h, chs, sector_size, track_len, _gap3_len, _data_len) => match self.in_dma {
                 true => self.operation_read_data(dma, bus, h, chs, sector_size, track_len),
                 false => self.operation_read_data_pio(bus, h, chs, sector_size, track_len),
             },
             Operation::WriteData(h, chs, sector_size, track_len, _gap3_len, _data_len, deleted) => {
-                self.operation_write_data(dma, bus, h, chs, sector_size, track_len, deleted)
+                match self.in_dma {
+                    true => self.operation_write_data(dma, bus, h, chs, sector_size, track_len, deleted),
+                    false => self.operation_write_data_pio(bus, h, chs, sector_size, track_len, deleted),
+                }
             }
             Operation::ReadTrack(h, chs, sector_size, track_len, _gap3_len, _data_len) => {
                 self.operation_read_track(dma, bus, h, chs.into(), sector_size, track_len)
