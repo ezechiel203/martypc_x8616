@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -149,13 +149,11 @@ impl IoDevice for MDACard {
 
         if self.lpt.is_some() {
             log::debug!("Adding LPT ports to MDA port list");
-            mda_ports.extend(
-                [
-                    (String::from("MDA LPT Data"), self.lpt_port_base),
-                    (String::from("MDA LPT Status"), self.lpt_port_base + 1),
-                    (String::from("MDA LPT Control"), self.lpt_port_base + 2),
-                ],
-            );
+            mda_ports.extend([
+                (String::from("MDA LPT Data"), self.lpt_port_base),
+                (String::from("MDA LPT Status"), self.lpt_port_base + 1),
+                (String::from("MDA LPT Control"), self.lpt_port_base + 2),
+            ]);
         }
 
         if let VideoCardSubType::Hercules = self.subtype {

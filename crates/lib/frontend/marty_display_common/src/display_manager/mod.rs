@@ -2,7 +2,7 @@
    MartyPC
    https://github.com/dbalsom/martypc
 
-   Copyright 2022-2025 Daniel Balsom
+   Copyright 2022-2026 Daniel Balsom
 
    Permission is hereby granted, free of charge, to any person obtaining a
    copy of this software and associated documentation files (the “Software”),
@@ -131,6 +131,7 @@ impl Display for DisplayTargetType {
 pub struct DisplayTargetInfo {
     pub handle: DtHandle,
     pub backend_name: String,
+    pub adapter_name: String,
     pub dtype: DisplayTargetType,
     pub flags: DisplayTargetFlags,
     pub vtype: Option<VideoType>,

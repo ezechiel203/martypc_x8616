@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -62,15 +62,16 @@
 
 use std::{collections::HashMap, path::Path, str::FromStr};
 
-use crate::bus::DeviceRunTimeUnit;
-
 #[cfg(feature = "ega")]
 use crate::devices::ega::EGACard;
 #[cfg(feature = "vga")]
 use crate::devices::vga::VGACard;
-use crate::devices::{cga::CGACard, mda::MDACard, tga::TGACard};
 
-use crate::devices::pic::Pic;
+use crate::{
+    bus::DeviceRunTimeUnit,
+    devices::{cga::CGACard, mda::MDACard, pic::Pic, tga::TGACard},
+};
+
 use serde::Deserialize;
 use serde_derive::Serialize;
 
@@ -174,11 +175,16 @@ pub struct VideoCardInterface<'a> {
     pub id:   VideoCardId,
 }
 
-// Video options that can be sent to a VideoCard device. Not all adapters will support
-// each option. For example, CGA snow is of course only specific to the CGA card.
+// Video options that can be sent to a VideoCard device. Not all adapters will support each option.
+#[derive(Copy, Clone, Debug)]
 pub enum VideoOption {
+    // Emit colors during hblank/vblank for debugging purposes.
     DebugDraw(bool),
+    // Enable 'snow' emulation on cards with single-ported VRAM and inadequate wait-state logic
+    // (Currently only CGA).
     EnableSnow(bool),
+    // Enable video sync emulation for cards that support it.
+    EmulateSync(bool),
 }
 
 // This enum determines the rendering method of the given videocard device.
@@ -323,7 +329,7 @@ pub struct DisplayApertureDesc {
 /// horizontal and vertical offsets from the origin (0,0)
 /// Additionally, a debug flag is set to indicate whether an aperture should render debugging
 /// information along with pixel data.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct DisplayAperture {
     pub w: u32,
     pub h: u32,
@@ -346,17 +352,20 @@ pub trait VideoCard {
     /// Apply the specified VideoOption to the adapter.
     fn set_video_option(&mut self, opt: VideoOption);
 
+    /// Enable or disable external monitor timing emulation.
+    fn set_monitor_emulation(&mut self, _enabled: bool) {}
+
     /// Returns the type of the adapter.
-    fn get_video_type(&self) -> VideoType;
+    fn video_type(&self) -> VideoType;
 
     /// Returns the rendering mode of the adapter.
-    fn get_render_mode(&self) -> RenderMode;
+    fn render_mode(&self) -> RenderMode;
 
     /// Returns the bit depth of the internal buffer for direct mode
-    fn get_render_depth(&self) -> RenderBpp;
+    fn render_depth(&self) -> RenderBpp;
 
     /// Returns the currently configured DisplayMode
-    fn get_display_mode(&self) -> DisplayMode;
+    fn display_mode(&self) -> DisplayMode;
 
     /// Override the clocking mode for the adapter.
     fn set_clocking_mode(&mut self, mode: ClockingMode);
@@ -365,70 +374,70 @@ pub trait VideoCard {
     // fn get_vram(&self) -> &[u8];
 
     /// Return the size (width, height) of the last rendered frame.
-    fn get_display_size(&self) -> (u32, u32);
+    fn display_size(&self) -> (u32, u32);
 
     /// Return the DisplayExtents struct corresponding to the last rendered frame.
-    fn get_display_extents(&self) -> &DisplayExtents;
+    fn display_extents(&self) -> &DisplayExtents;
 
     /// Return a list of available display aperture names, indices, and the default aperture index
     fn list_display_apertures(&self) -> Vec<DisplayApertureDesc>;
 
     /// Return a list of display aperture definitions
-    fn get_display_apertures(&self) -> Vec<DisplayAperture>;
+    fn display_apertures(&self) -> Vec<DisplayAperture>;
 
     /// Return the 16 color CGA color index for the active overscan color.
-    fn get_overscan_color(&self) -> u8;
+    fn overscan_color(&self) -> u8;
 
     /// Return the u8 slice representing the selected buffer type. (Direct rendering only)
-    fn get_buf(&self, buf_select: BufferSelect) -> &[u8];
+    fn buf(&self, buf_select: BufferSelect) -> &[u8];
 
     /// Return the u8 slice representing the front buffer of the device. (Direct rendering only)
-    fn get_display_buf(&self) -> &[u8];
+    fn display_buf(&self) -> &[u8];
 
-    fn get_clock_divisor(&self) -> u32;
+    fn clock_divisor(&self) -> u32;
 
     /// Return the status of VSYNC, HSYNC, and DISPLAY ENABLE, if applicable.
-    fn get_sync(&self) -> (bool, bool, bool, bool);
+    fn sync(&self) -> (bool, bool, bool, bool);
 
     /// Get the position of the CRT beam (Direct rendering only)
-    fn get_beam_pos(&self) -> Option<(u32, u32)>;
+    fn beam_pos(&self) -> Option<(u32, u32)>;
 
     /// Get the current scanline being rendered.
-    fn get_scanline(&self) -> u32;
+    fn scanline(&self) -> u32;
 
     /// Return a bool determining whether we double scanlines for this device (for CGA mostly)
-    fn get_scanline_double(&self) -> bool;
+    fn is_scanline_doubled(&self) -> bool;
 
     /// Get the current refresh rate from the adapter. Different adapters might
     /// support different refresh rates, even per mode.
-    fn get_refresh_rate(&self) -> f32;
+    fn refresh_rate(&self) -> f32;
 
     /// Get the current calculated video start address from the CRTC
-    fn get_start_address(&self) -> u16;
+    fn start_address(&self) -> u16;
 
     /// Returns whether the current Display Mode has 40 col text
     fn is_40_columns(&self) -> bool;
 
     /// Returns whether the current Display Mode is a graphics mode
-    fn is_graphics_mode(&self) -> bool;
+    fn is_in_graphics_mode(&self) -> bool;
 
     /// Returns a CursorInfo struct describing the current state of the text mode cursor.
-    fn get_cursor_info(&self) -> CursorInfo;
+    fn cursor_info(&self) -> CursorInfo;
 
     /// Return a FontInfo struct describing the currently selected font
-    fn get_current_font(&self) -> Option<FontInfo>;
+    fn current_font(&self) -> Option<FontInfo>;
 
     /// Returns the currently programmed character height
     /// (CRTC Maximum Scanline + 1)
-    fn get_character_height(&self) -> u8;
+    fn character_height(&self) -> u8;
 
-    fn get_palette(&self) -> Option<Vec<[u8; 4]>>;
+    fn palette(&self) -> Option<Vec<[u8; 4]>>;
 
     /// Returns a hash map of vectors containing name and value pairs.
     ///
     /// This allows returning multiple categories of related registers.
     /// For the EGA for example, there are CRTC, Sequencer, Attribute and Graphics registers.
-    fn get_videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>>;
+    fn videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>>;
 
     /// Runs the video card device for the specified period of time
     fn run(&mut self, time: DeviceRunTimeUnit, pic: &mut Option<Box<Pic>>, cpumem: Option<&[u8]>);
@@ -442,16 +451,16 @@ pub trait VideoCard {
     fn reset(&mut self);
 
     /// Read pixel raw value
-    fn get_pixel_raw(&self, x: u32, y: u32) -> u8;
+    fn pixel_raw(&self, x: u32, y: u32) -> u8;
 
     /// Read pixel color value as RGBA
-    fn get_pixel(&self, x: u32, y: u32) -> &[u8];
+    fn pixel(&self, x: u32, y: u32) -> &[u8];
 
     /// Return the specified bitplane as a slice
-    fn get_plane_slice(&self, plane: usize) -> &[u8];
+    fn plane_slice(&self, plane: usize) -> &[u8];
 
     /// Return the number of frames the video device has rendered
-    fn get_frame_count(&self) -> u64;
+    fn frame_count(&self) -> u64;
 
     /// Dump graphics memory to disk
     fn dump_mem(&self, path: &Path);

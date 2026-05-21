@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -34,7 +34,7 @@ use super::*;
 
 pub const VGA_VBLANK_MASK: u16 = 0x007F;
 pub const VGA_VSYNC_MASK: u16 = 0x000F;
-pub const VGA_HBLANK_MASK: u8 = 0x001F;
+pub const VGA_HBLANK_MASK: u8 = 0x003F;
 pub const VGA_HSYNC_MASK: u8 = 0x001F;
 pub const VGA_HSLC_MASK: u16 = 0x03FF;
 
@@ -136,7 +136,16 @@ pub struct CEndVerticalBlank {
 pub struct CEndHorizontalRetrace {
     pub end_horizontal_retrace: B5,
     pub horizontal_retrace_delay: B2,
-    pub start_odd: B1,
+    pub end_horizontal_blank_bit_5: B1,
+}
+
+#[bitfield]
+#[derive(Copy, Clone)]
+pub struct CPresetRowScan {
+    pub preset_row_scan: B5,
+    pub byte_panning: B2,
+    #[skip]
+    unused: B1,
 }
 
 #[bitfield]
@@ -214,9 +223,9 @@ pub struct CModeControl {
 
 #[derive(Copy, Clone, Default, Debug)]
 pub struct CrtcAperture {
-    pub top: u32,
-    pub left: u32,
-    pub right: u32,
+    pub top:    u32,
+    pub left:   u32,
+    pub right:  u32,
     pub bottom: u32,
 }
 
@@ -233,11 +242,16 @@ impl CrtcAperture {
     pub fn is_compatible_with(&self, extents: (u32, u32)) -> bool {
         if self.left + self.width() > extents.0 {
             false
-        } else if self.top + self.height() > extents.1 {
+        }
+        else if self.top + self.height() > extents.1 {
             false
-        } else if self.left > extents.0 {
+        }
+        else if self.left > extents.0 {
             false
-        } else { self.top <= extents.1 }
+        }
+        else {
+            self.top <= extents.1
+        }
     }
 
     pub fn adjust(&mut self, char_clock: u32, mode: ShiftMode) {
@@ -275,20 +289,20 @@ pub struct CrtcStatus {
 pub struct VgaCrtc {
     // CRTC registers
     register_select_byte: u8,
-    register_selected: CRTCRegister,
+    register_selected:    CRTCRegister,
 
     crtc_horizontal_total: u8,                          // R(0) Horizontal Total
     crtc_horizontal_display_end: u8,                    // R(1) Horizontal Display End
     crtc_start_horizontal_blank: u8,                    // R(2) Start Horizontal Blank
     crtc_end_horizontal_blank: CEndHorizontalBlank,     // R(3) Bits 0-4 - End Horizontal Blank
-    crtc_end_horizontal_blank_norm: u8,                 // End Horizontal Blank value normalized to column number
+    crtc_end_horizontal_blank_norm: u16,                // End Horizontal Blank value normalized to column number
     crtc_start_horizontal_retrace: u8,                  // R(4) Start Horizontal Retrace
     crtc_end_horizontal_retrace: CEndHorizontalRetrace, // R(5) End Horizontal Retrace
-    crtc_end_horizontal_retrace_norm: u8,               // End Horizontal Retrace value normalized to column number
-    crtc_retrace_width: u8,
+    crtc_end_horizontal_retrace_norm: u16,              // End Horizontal Retrace value normalized to column number
+    crtc_retrace_width: u16,
     crtc_vertical_total: u16,                // R(6) Vertical Total (9-bit value)
     crtc_overflow: COverflow,                // R(7) Overflow
-    crtc_preset_row_scan: u8,                // R(8) Preset Row Scan
+    crtc_preset_row_scan: CPresetRowScan,    // R(8) Preset Row Scan
     crtc_maximum_scanline: CMaximumScanline, // R(9) Max Scanline
     crtc_cursor_start: CCursorStart,         // R(A) Cursor Location (9-bit value)
     crtc_cursor_enabled: bool,               // Calculated from R(A) bit 5
@@ -346,7 +360,7 @@ impl Default for VgaCrtc {
     fn default() -> Self {
         Self {
             // CRTC registers
-            register_selected: CRTCRegister::HorizontalTotal,
+            register_selected:    CRTCRegister::HorizontalTotal,
             register_select_byte: 0,
 
             crtc_horizontal_total: DEFAULT_HORIZONTAL_TOTAL,
@@ -360,7 +374,7 @@ impl Default for VgaCrtc {
             crtc_retrace_width: 0,
             crtc_vertical_total: DEFAULT_VERTICAL_TOTAL,
             crtc_overflow: COverflow::new(),
-            crtc_preset_row_scan: DEFAULT_PRESET_ROW_SCAN,
+            crtc_preset_row_scan: CPresetRowScan::from_bytes([DEFAULT_PRESET_ROW_SCAN]),
             crtc_maximum_scanline: CMaximumScanline::new(),
             crtc_cursor_start: CCursorStart::new(),
             crtc_cursor_enabled: true,
@@ -464,18 +478,10 @@ impl VgaCrtc {
 
     pub fn read_crtc_register_data(&mut self) -> u8 {
         match self.register_selected {
-            CRTCRegister::HorizontalTotal => {
-                self.crtc_horizontal_total
-            }
-            CRTCRegister::HorizontalDisplayEnd => {
-                self.crtc_horizontal_display_end
-            }
-            CRTCRegister::StartHorizontalBlank => {
-                self.crtc_start_horizontal_blank
-            }
-            CRTCRegister::EndHorizontalBlank => {
-                self.crtc_end_horizontal_blank.into_bytes()[0]
-            }
+            CRTCRegister::HorizontalTotal => self.crtc_horizontal_total,
+            CRTCRegister::HorizontalDisplayEnd => self.crtc_horizontal_display_end,
+            CRTCRegister::StartHorizontalBlank => self.crtc_start_horizontal_blank,
+            CRTCRegister::EndHorizontalBlank => self.crtc_end_horizontal_blank.into_bytes()[0],
             CRTCRegister::StartHorizontalRetrace => {
                 // (R4)
                 self.crtc_start_horizontal_retrace
@@ -502,7 +508,7 @@ impl VgaCrtc {
             }
             CRTCRegister::PresetRowScan => {
                 // (R8)
-                self.crtc_preset_row_scan
+                self.crtc_preset_row_scan.into_bytes()[0]
             }
             CRTCRegister::MaximumScanLine => {
                 // (R9)
@@ -589,6 +595,8 @@ impl VgaCrtc {
                 // (R0) 8 bit write only
                 if self.crtc_vertical_retrace_end.protect_regs() == 0 {
                     self.crtc_horizontal_total = byte;
+                    self.normalize_end_horizontal_blank();
+                    self.normalize_end_horizontal_retrace();
                 }
             }
             CRTCRegister::HorizontalDisplayEnd => {
@@ -625,9 +633,7 @@ impl VgaCrtc {
                 if self.crtc_vertical_retrace_end.protect_regs() == 0 {
                     self.crtc_end_horizontal_retrace = CEndHorizontalRetrace::from_bytes([byte]);
 
-                    if self.crtc_end_horizontal_retrace.start_odd() != 0 {
-                        log::warn!("som == 1!");
-                    }
+                    self.normalize_end_horizontal_blank();
                     self.normalize_end_horizontal_retrace();
                 }
             }
@@ -637,6 +643,8 @@ impl VgaCrtc {
                 if self.crtc_vertical_retrace_end.protect_regs() == 0 {
                     self.crtc_vertical_total &= 0xFF00;
                     self.crtc_vertical_total |= byte as u16;
+                    self.normalize_end_vertical_retrace();
+                    self.normalize_end_vertical_blank();
                 }
             }
             CRTCRegister::Overflow => {
@@ -651,22 +659,25 @@ impl VgaCrtc {
                 if self.crtc_vertical_retrace_end.protect_regs() == 0 {
                     self.crtc_overflow = COverflow::from_bytes([byte]);
                     self.set_crtc_overflow_bits();
+                    self.normalize_end_vertical_retrace();
+                    self.normalize_end_vertical_blank();
                 }
             }
             CRTCRegister::PresetRowScan => {
                 // (R8)
-                self.crtc_preset_row_scan = byte;
+                self.crtc_preset_row_scan = CPresetRowScan::from_bytes([byte]);
                 //log::debug!("Preset row scan changed!");
             }
             CRTCRegister::MaximumScanLine => {
                 // (R9)
                 self.crtc_maximum_scanline = CMaximumScanline::from_bytes([byte]);
-                // Write 9th bit of line compare 
-                self.crtc_line_compare &= 0xFDFF;
-                self.crtc_line_compare |= match self.crtc_maximum_scanline.line_compare_bit_9() {
-                    0 => 0,
-                    _ => 0x0200,
-                };
+                // Write 9th bit of start vertical blank.
+                self.crtc_start_vertical_blank &= !0x0200;
+                self.crtc_start_vertical_blank |= (self.crtc_maximum_scanline.vbs() as u16) << 9;
+                // Write 9th bit of line compare
+                self.crtc_line_compare &= !0x0200;
+                self.crtc_line_compare |= (self.crtc_maximum_scanline.line_compare_bit_9() as u16) << 9;
+                self.normalize_end_vertical_blank();
             }
             CRTCRegister::CursorStartLine => {
                 // R(A)
@@ -744,6 +755,7 @@ impl VgaCrtc {
                 // bit 8 in overflow register. Set only lower 8 bits here.
                 self.crtc_start_vertical_blank &= 0xFF00;
                 self.crtc_start_vertical_blank |= byte as u16;
+                self.normalize_end_vertical_blank();
             }
             CRTCRegister::EndVerticalBlank => {
                 // R(16) - Bits 0-3: End Vertical Blank
@@ -786,10 +798,10 @@ impl VgaCrtc {
         self.crtc_vertical_retrace_start |= (self.crtc_overflow.vertical_retrace_start_bit_8() as u16) << 8;
         self.crtc_vertical_retrace_start |= (self.crtc_overflow.vertical_retrace_start_bit_9() as u16) << 9;
         // Bit 3: Start Vertical Blank
-        self.crtc_start_vertical_blank &= 0x00FF;
+        self.crtc_start_vertical_blank &= !0x0100;
         self.crtc_start_vertical_blank |= (self.crtc_overflow.start_vertical_blank_bit_8() as u16) << 8;
         // Bit 4: Line Compare
-        self.crtc_line_compare &= 0x00FF;
+        self.crtc_line_compare &= !0x0100;
         self.crtc_line_compare |= (self.crtc_overflow.line_compare_bit_8() as u16) << 8;
 
         // In IBM's documentation, bit 5 is specified to be "Bit 8" of register 0x0A,
@@ -809,33 +821,24 @@ impl VgaCrtc {
     /// counter to determine when the horizontal blank period is over. We convert this
     /// into the actual column number.
     fn normalize_end_horizontal_blank(&mut self) {
-        let ehb = self.crtc_end_horizontal_blank.end_horizontal_blank();
+        let ehb = self.end_horizontal_blank();
+        let period = self.horizontal_period();
 
-        let mut proposed_ehb = self.crtc_start_horizontal_blank & 0xE0 | ehb;
-        if proposed_ehb <= self.crtc_start_horizontal_blank {
-            proposed_ehb = (self.crtc_start_horizontal_blank + 0x20) & 0xE0 | ehb;
-        }
-
-        if proposed_ehb > self.crtc_horizontal_total {
-            // Wrap at HT
-            proposed_ehb = ehb
-        }
-        self.crtc_end_horizontal_blank_norm = proposed_ehb;
+        self.crtc_end_horizontal_blank_norm = Self::normalize_masked_end(
+            self.crtc_start_horizontal_blank as u16,
+            ehb as u16,
+            VGA_HBLANK_MASK as u16,
+            period,
+            0,
+        );
     }
 
     fn normalize_end_vertical_blank(&mut self) {
         let evb = self.crtc_end_vertical_blank.end_vertical_blank() as u16;
+        let period = self.vertical_period();
 
-        let mut proposed_evb = self.crtc_start_vertical_blank & 0xFFE0 | evb;
-        if proposed_evb <= self.crtc_start_vertical_blank {
-            proposed_evb = (self.crtc_start_vertical_blank + 0x20) & 0xFFE0 | evb;
-        }
-
-        if proposed_evb > self.crtc_vertical_total {
-            // Wrap at VT
-            proposed_evb = evb
-        }
-        self.crtc_end_vertical_blank_norm = proposed_evb;
+        self.crtc_end_vertical_blank_norm =
+            Self::normalize_masked_end(self.crtc_start_vertical_blank, evb, VGA_VBLANK_MASK, period, 0);
     }
 
     /// Calculate the normalized End Horizontal Retrace value
@@ -846,20 +849,14 @@ impl VgaCrtc {
     /// into the actual column number.
     fn normalize_end_horizontal_retrace(&mut self) {
         let ehr = self.crtc_end_horizontal_retrace.end_horizontal_retrace();
+        let period = self.horizontal_period();
+        let start = self
+            .crtc_start_horizontal_retrace
+            .wrapping_add(self.crtc_end_horizontal_retrace.horizontal_retrace_delay()) as u16;
+        let end = Self::normalize_masked_end(start, ehr as u16, VGA_HSYNC_MASK as u16, period, -1);
 
-        let mut proposed_ehr = self.crtc_start_horizontal_retrace & 0xE0 | ehr;
-        if proposed_ehr <= self.crtc_start_horizontal_retrace {
-            proposed_ehr = (self.crtc_start_horizontal_retrace + 0x20) & 0xE0 | ehr;
-        }
-
-        if proposed_ehr > self.crtc_horizontal_total {
-            // Wrap at HT
-            proposed_ehr = ehr;
-            self.crtc_retrace_width = self.crtc_horizontal_total - self.crtc_start_horizontal_retrace + ehr;
-        } else {
-            self.crtc_retrace_width = proposed_ehr - self.crtc_start_horizontal_retrace;
-        }
-        self.crtc_end_horizontal_retrace_norm = proposed_ehr;
+        self.crtc_retrace_width = (end + period - (start % period)) % period;
+        self.crtc_end_horizontal_retrace_norm = end;
     }
 
     /// Calculate the normalized Vertical Retrace End value
@@ -870,17 +867,49 @@ impl VgaCrtc {
     /// into the actual scanline number.
     fn normalize_end_vertical_retrace(&mut self) {
         let evr = self.crtc_vertical_retrace_end.vertical_retrace_end() as u16;
+        let period = self.vertical_period();
 
-        let mut proposed_evr = self.crtc_vertical_retrace_start & 0xFFE0 | evr;
-        if proposed_evr <= self.crtc_vertical_retrace_start {
-            proposed_evr = (self.crtc_vertical_retrace_start + 0x20) & 0xFFE0 | evr;
+        self.crtc_vertical_retrace_end_norm =
+            Self::normalize_masked_end(self.crtc_vertical_retrace_start, evr, VGA_VSYNC_MASK, period, 0);
+    }
+
+    #[inline(always)]
+    fn horizontal_period(&self) -> u16 {
+        self.crtc_horizontal_total as u16 + 5
+    }
+
+    #[inline(always)]
+    fn vertical_period(&self) -> u16 {
+        self.crtc_vertical_total + 1
+    }
+
+    #[inline(always)]
+    fn end_horizontal_blank(&self) -> u8 {
+        self.crtc_end_horizontal_blank.end_horizontal_blank()
+            | (self.crtc_end_horizontal_retrace.end_horizontal_blank_bit_5() << 5)
+    }
+
+    /// Normalize a CRTC masked-match value to its fully resolved value, accounting for wrap-around
+    /// via modulo. These values are only used for debug display.
+    fn normalize_masked_end(start: u16, end: u16, mask: u16, period: u16, compare_adjust: i16) -> u16 {
+        let period = period.max(1);
+        let start = start % period;
+
+        for offset in 1..=period {
+            let candidate = (start + offset) % period;
+            let compare_value = if compare_adjust < 0 {
+                candidate.wrapping_sub(compare_adjust.unsigned_abs())
+            }
+            else {
+                candidate.wrapping_add(compare_adjust as u16)
+            };
+
+            if (compare_value & mask) == end {
+                return candidate;
+            }
         }
 
-        if proposed_evr > self.crtc_vertical_total {
-            // Wrap at VT
-            proposed_evr = evr
-        }
-        self.crtc_vertical_retrace_end_norm = proposed_evr;
+        end % period
     }
 
     /// Handle a write to the CRTC Mode Control Register (R17)
@@ -930,7 +959,7 @@ impl VgaCrtc {
         // Process horizontal blank period
         if self.status.hblank {
             // End horizontal blank when we reach R3
-            if (self.hcc & VGA_HBLANK_MASK) == self.crtc_end_horizontal_blank.end_horizontal_blank() {
+            if (self.hcc & VGA_HBLANK_MASK) == self.end_horizontal_blank() {
                 self.status.hblank = false;
                 self.status.hborder = true;
             }
@@ -990,7 +1019,8 @@ impl VgaCrtc {
                 self.in_hrd = false;
                 self.hrdc = 0;
                 self.hsc = 0;
-            } else {
+            }
+            else {
                 self.hrdc = self.hrdc.wrapping_add(1);
             }
         }
@@ -1045,7 +1075,6 @@ impl VgaCrtc {
             //log::debug!(">>>>>> Setting aperture left to {}", raster.0);
             self.status.dynamic_aperture.left = raster.0;
 
-
             self.status.cref = true;
 
             if self.in_last_vblank_line {
@@ -1062,10 +1091,12 @@ impl VgaCrtc {
             self.vlc += if self.crtc_maximum_scanline.two_t4() {
                 if (self.slc & 0x01) != 0 {
                     0
-                } else {
+                }
+                else {
                     1
                 }
-            } else {
+            }
+            else {
                 1
             };
 
@@ -1141,7 +1172,7 @@ impl VgaCrtc {
 
                 self.hcc = 0;
                 self.vcc = 0;
-                self.vlc = self.crtc_preset_row_scan;
+                self.vlc = self.crtc_preset_row_scan.preset_row_scan();
                 //log::debug!(">>>>>> Setting aperture top to {}x{}", raster.0, raster.1);
                 self.status.dynamic_aperture.top = raster.1; // Set top side of screen
                 self.frame += 1;
@@ -1149,34 +1180,6 @@ impl VgaCrtc {
                 if (self.frame % EGA_CURSOR_BLINK_RATE as u64) == 0 {
                     self.blink_state = !self.blink_state;
                 }
-
-                // The SOM (Start Odd/Even Memory Address) register is used to select the starting address for each
-                // scanline. If set to 0, even memory addresses are used. If set to 1, odd memory addresses are used.
-                // TODO: I actually have no idea how this is implemented
-
-                /*
-                let start_addr_som = if self.crtc_end_horizontal_retrace.start_odd() == 0 {
-                    // Start on even address (0)
-                    if self.crtc_start_address & 1 != 0 {
-                        self.crtc_start_address + 1
-                    }
-                    else {
-                        self.crtc_start_address
-                    }
-                }
-                else {
-                    // Start on odd address (1)
-                    if self.crtc_start_address & 1 == 0 {
-                        self.crtc_start_address + 1
-                    }
-                    else {
-                        self.crtc_start_address
-                    }
-                };
-
-                self.start_address_latch = start_addr_som;
-                self.vma = start_addr_som;
-                */
 
                 self.vma = self.start_address_latch;
                 self.vma_sl = self.vma;
@@ -1215,7 +1218,8 @@ impl VgaCrtc {
                 self.status.den_skew = false;
                 self.status.hborder = true;
                 self.dsc = 0;
-            } else {
+            }
+            else {
                 self.status.den_skew = true;
                 self.dsc = self.dsc.wrapping_add(1);
             }
@@ -1232,12 +1236,13 @@ impl VgaCrtc {
         if self.crtc_underline_location.double_word_mode() != 0 {
             // Doubleword mode selected. Typically used in mode13h.
 
-            // The documentation surrounding this bit is poor. Many references state that the address 
+            // The documentation surrounding this bit is poor. Many references state that the address
             // is shifted by two, but this is an incomplete description. The low order bits are replaced
             // by MA12 and MA13 as well. This is only mentioned in the official IBM documentation.
             let ma12_13 = (self.vma & (0x3 << 12)) >> 12;
             output_addr = (output_addr << 2) | ma12_13;
-        } else if let WordOrByteMode::Word = self.crtc_mode_control.word_or_byte_mode() {
+        }
+        else if let WordOrByteMode::Word = self.crtc_mode_control.word_or_byte_mode() {
             // Word mode selected
             let bit = match self.crtc_mode_control.address_wrap() {
                 0 => (self.vma & (1 << 13)) >> 13,
@@ -1289,7 +1294,9 @@ impl VgaCrtc {
             }
         }
 
-        if self.status.vsync && (self.slc & VGA_VSYNC_MASK) == self.crtc_vertical_retrace_end.vertical_retrace_end() as u16 {
+        if self.status.vsync
+            && (self.slc & VGA_VSYNC_MASK) == self.crtc_vertical_retrace_end.vertical_retrace_end() as u16
+        {
             // We are leaving vsync period, generate a frame
             self.status.begin_vsync = true;
             self.status.vsync = false;
@@ -1367,11 +1374,11 @@ impl VgaCrtc {
         push_reg_str!(crtc_vec, CRTCRegister::StartHorizontalRetrace, "[R04]", self.crtc_start_horizontal_retrace);
         push_reg_str!(crtc_vec, CRTCRegister::EndHorizontalRetrace, "[R05]", self.crtc_end_horizontal_retrace.end_horizontal_retrace());
         push_reg_str!(crtc_vec, CRTCRegister::EndHorizontalRetrace, "[R05:hrd]", self.crtc_end_horizontal_retrace.horizontal_retrace_delay());
-        push_reg_str!(crtc_vec, CRTCRegister::EndHorizontalRetrace, "[R05:som]", self.crtc_end_horizontal_retrace.start_odd());
+        push_reg_str!(crtc_vec, CRTCRegister::EndHorizontalRetrace, "[R05:ehb5]", self.crtc_end_horizontal_retrace.end_horizontal_blank_bit_5());
         push_reg_str!(crtc_vec, CRTCRegister::EndHorizontalRetrace, "[R05:norm]", self.crtc_end_horizontal_retrace_norm);
         push_reg_str!(crtc_vec, CRTCRegister::VerticalTotal, "[R06]", self.crtc_vertical_total);
         push_reg_str!(crtc_vec, CRTCRegister::Overflow, "[R07]", self.crtc_overflow.into_bytes()[0]);
-        push_reg_str!(crtc_vec, CRTCRegister::PresetRowScan, "[R08]", self.crtc_preset_row_scan);
+        push_reg_str!(crtc_vec, CRTCRegister::PresetRowScan, "[R08]", self.crtc_preset_row_scan.into_bytes()[0]);
         push_reg_str!(crtc_vec, CRTCRegister::MaximumScanLine, "[R09]", format!("{:02X}:{}", self.crtc_maximum_scanline.into_bytes()[0], self.crtc_maximum_scanline.maximum_scanline()));
         push_reg_str!(crtc_vec, CRTCRegister::CursorStartLine, "[R0A]", self.crtc_cursor_start.into_bytes()[0]);
         push_reg_str!(crtc_vec, CRTCRegister::CursorEndLine, "[R0B]", self.crtc_cursor_end.into_bytes()[0]);
@@ -1386,12 +1393,12 @@ impl VgaCrtc {
         push_reg_str!(crtc_vec, CRTCRegister::VerticalDisplayEnd, "[R12]", self.crtc_vertical_display_end);
         push_reg_str!(crtc_vec, CRTCRegister::Offset, "[R13]", self.crtc_offset);
         push_reg_str!(
-            crtc_vec, 
-            CRTCRegister::UnderlineLocation, 
-            "[R14:dw:cb4:ul]", 
-            format!("{}:{}:{}", 
-                self.crtc_underline_location.double_word_mode(), 
-                self.crtc_underline_location.count_by_four(), 
+            crtc_vec,
+            CRTCRegister::UnderlineLocation,
+            "[R14:dw:cb4:ul]",
+            format!("{}:{}:{}",
+                self.crtc_underline_location.double_word_mode(),
+                self.crtc_underline_location.count_by_four(),
                 self.crtc_underline_location.underline_location()));
         push_reg_str!(crtc_vec, CRTCRegister::StartVerticalBlank, "[R15]", self.crtc_start_vertical_blank);
         push_reg_str!(crtc_vec, CRTCRegister::EndVerticalBlank, "[R16]", self.crtc_end_vertical_blank.into_bytes()[0]);

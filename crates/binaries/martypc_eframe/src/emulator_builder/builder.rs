@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -764,6 +764,7 @@ impl EmulatorBuilder {
 
         // Create a GUI state object
         let mut gui = GuiState::new(exec_control.clone(), sender.clone(), render_callback);
+        gui.set_build_info(env!("CARGO_PKG_VERSION"), crate::build_id());
 
         // Set list of virtual serial ports
         gui.set_serial_ports(machine.bus().enumerate_serial_ports());

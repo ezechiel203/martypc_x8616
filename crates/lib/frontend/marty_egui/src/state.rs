@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -82,7 +82,6 @@ use crate::{
     GuiFloat,
     GuiVariableContext,
     GuiWindow,
-    GuiWindow::EMSVirtualMemoryViewer,
     MediaTrayState,
     PerformanceStats,
 };
@@ -519,6 +518,10 @@ impl GuiState {
         self.event_queue.send(GuiEvent::RescanMediaFolders);
     }
 
+    pub fn set_build_info(&mut self, version: impl Into<String>, build_id: impl Into<String>) {
+        self.about_dialog.set_build_info(version, build_id);
+    }
+
     pub fn set_paths(&mut self, default_floppy_path: PathBuf) {
         self.default_floppy_path = Some(default_floppy_path.clone());
         self.modal.set_paths(default_floppy_path.clone());
@@ -807,7 +810,7 @@ impl GuiState {
 
     /// Specify the presence of a gameport. This will enable the gameport submenu under Input.
     #[inline]
-    pub fn set_gameport(&mut self, state: bool, layout: ControllerLayout) {
+    pub fn set_gameport(&mut self, state: bool, _layout: ControllerLayout) {
         self.gameport = state;
     }
 
@@ -950,7 +953,7 @@ impl GuiState {
         let vctx = GuiVariableContext::Display(DtHandle::MAIN);
         if !self.display_info.is_empty() {
             if let Some(enum_mut) = self.get_option_enum_mut(GuiEnum::WindowBezel(Default::default()), Some(vctx)) {
-                let mut checked = *enum_mut == GuiEnum::WindowBezel(true);
+                let checked = *enum_mut == GuiEnum::WindowBezel(true);
 
                 return checked;
             }

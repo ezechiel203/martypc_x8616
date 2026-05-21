@@ -2,7 +2,7 @@
    MartyPC
    https://github.com/dbalsom/martypc
 
-   Copyright 2022-2025 Daniel Balsom
+   Copyright 2022-2026 Daniel Balsom
 
    Permission is hereby granted, free of charge, to any person obtaining a
    copy of this software and associated documentation files (the “Software”),
@@ -1038,7 +1038,7 @@ impl<'p> DisplayManager<EFrameBackend, GuiRenderContext, ViewportId, ViewportId,
             let vtc = resolve_dtc_mut!(vtc);
             let mut vtype = None;
             if let Some(vid) = vtc.card_id {
-                vtype = machine.bus().video(&vid).and_then(|card| Some(card.get_video_type()));
+                vtype = machine.bus().video(&vid).and_then(|card| Some(card.video_type()));
             }
 
             let mut render_time = Duration::from_secs(0);
@@ -1064,23 +1064,21 @@ impl<'p> DisplayManager<EFrameBackend, GuiRenderContext, ViewportId, ViewportId,
             //     gui_render_time = gui_ctx.get_render_time();
             // }
 
-            let backend_name = String::new();
-
-            // TODO: A display target doesn't have a backend anymore,
-            //       so if we want the adapter name we'll have to either set it,
-            //       or get it from the main DisplayManager.
-
-            // #[cfg(feature = "use_wgpu")]
-            // if let Some(backend) = &vt.backend {
-            //     backend_name = backend
-            //         .get_adapter_info()
-            //         .map(|info| format!("{:?} ({})", info.backend, info.name))
-            //         .unwrap_or_default();
-            // }
+            let backend_name = self
+                .backend
+                .as_ref()
+                .map(|backend| backend.backend_name().to_string())
+                .unwrap_or_default();
+            let adapter_name = self
+                .backend
+                .as_ref()
+                .map(|backend| backend.adapter_name().to_string())
+                .unwrap_or_default();
 
             info_vec.push(DisplayTargetInfo {
                 handle: DtHandle(i),
                 backend_name,
+                adapter_name,
                 dtype: vtc.dt_type,
                 flags: vtc.dt_flags,
                 vtype,

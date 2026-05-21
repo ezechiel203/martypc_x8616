@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -355,7 +355,7 @@ impl NecVx0 {
                         
                         // Always read in r2 since there will always be at least one bit preserved in the second word.
                         word_mask = !(0xFFFF >> trailing_bits);
-                        word_data = self.biu_read_u16(Segment::ES, self.di.wrapping_add(2), ReadWriteFlag::Normal) & word_mask;
+                        word_data = self.biu_read_u16(Segment::ES, self.di, ReadWriteFlag::Normal) & word_mask;
                         ax_bits >>= 16 - bit_idx;
                         let write2 = word_data | ax_bits;
                         

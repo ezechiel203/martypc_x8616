@@ -147,30 +147,28 @@ pub fn update_egui(emu: &mut Emulator, tm: &TimestepManager, elwt: &EventLoopWin
         let (mem_dump_addr_str, _source) = emu.gui.ems_virtual_memory_viewer.get_address();
 
         if let Some(fantasy_ems) = emu.machine.fantasy_ems() {
-            let (addr, mem_dump_addr) = match fantasy_ems.eval_virtual_address(&mem_dump_addr_str)
-            {
+            let (addr, mem_dump_addr) = match fantasy_ems.eval_virtual_address(&mem_dump_addr_str) {
                 Some(i) => {
-                let addr: u32 = i.into();
-                // Dump at 16 byte block boundaries
-                (addr, addr & !0x0F)
-            }
+                    let addr: u32 = i.into();
+                    // Dump at 16 byte block boundaries
+                    (addr, addr & !0x0F)
+                }
                 None => {
-                // Show address 0 if expression eval fails
-                (0, 0)
-            }
+                    // Show address 0 if expression eval fails
+                    (0, 0)
+                }
             };
 
-            let mem_dump_vec = emu
-                .machine
-                .bus()
-                .dump_virtual_flat_tokens_ex(mem_dump_addr as usize, addr as usize, 256);
+            let mem_dump_vec =
+                emu.machine
+                    .bus()
+                    .dump_virtual_flat_tokens_ex(mem_dump_addr as usize, addr as usize, 256);
 
             //framework.gui.memory_viewer.set_row(mem_dump_addr as usize);
 
             emu.gui.ems_virtual_memory_viewer.set_address(addr as usize);
             emu.gui.ems_virtual_memory_viewer.set_memory(mem_dump_vec);
         }
-
     }
 
     // Update data visualizer
@@ -198,7 +196,7 @@ pub fn update_egui(emu: &mut Emulator, tm: &TimestepManager, elwt: &EventLoopWin
             .update_data(emu.machine.bus().get_vec_at_ex(addr, data_len));
 
         emu.machine.primary_videocard().map(|vc| {
-            let palette = vc.get_palette();
+            let palette = vc.palette();
             if let Some(pal) = palette {
                 emu.gui.data_visualizer.update_palette_u8(pal);
             }

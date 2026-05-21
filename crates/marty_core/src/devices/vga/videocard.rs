@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -37,29 +37,29 @@ use std::{collections::HashMap, path::Path};
 impl VideoCard for VGACard {
     fn set_video_option(&mut self, opt: VideoOption) {
         match opt {
-            VideoOption::EnableSnow(_state) => {
-                log::warn!("VideoOption::EnableSnow not supported for EGA");
-            }
             VideoOption::DebugDraw(state) => {
                 log::debug!("VideoOption::DebugDraw set to: {}", state);
                 self.debug_draw = state;
             }
+            _ => {
+                log::warn!("VideoOption::{:?} not supported for VGA", opt);
+            }
         }
     }
 
-    fn get_video_type(&self) -> VideoType {
+    fn video_type(&self) -> VideoType {
         VideoType::VGA
     }
 
-    fn get_render_mode(&self) -> RenderMode {
+    fn render_mode(&self) -> RenderMode {
         RenderMode::Direct
     }
 
-    fn get_render_depth(&self) -> RenderBpp {
+    fn render_depth(&self) -> RenderBpp {
         RenderBpp::ThirtyTwo
     }
 
-    fn get_display_mode(&self) -> DisplayMode {
+    fn display_mode(&self) -> DisplayMode {
         self.display_mode
     }
 
@@ -67,7 +67,7 @@ impl VideoCard for VGACard {
         // not implemented
     }
 
-    fn get_display_size(&self) -> (u32, u32) {
+    fn display_size(&self) -> (u32, u32) {
         /*        // EGA supports multiple fonts.
 
         let font_w = EGA_FONTS[self.current_font].w;
@@ -87,7 +87,7 @@ impl VideoCard for VGACard {
     }
 
     /// Unimplemented for indirect rendering.
-    fn get_display_extents(&self) -> &DisplayExtents {
+    fn display_extents(&self) -> &DisplayExtents {
         &self.extents
     }
 
@@ -95,64 +95,60 @@ impl VideoCard for VGACard {
         EGA_APERTURE_DESCS.to_vec()
     }
 
-    fn get_display_apertures(&self) -> Vec<DisplayAperture> {
+    fn display_apertures(&self) -> Vec<DisplayAperture> {
         self.extents.apertures.clone()
     }
 
-    fn get_overscan_color(&self) -> u8 {
+    fn overscan_color(&self) -> u8 {
         0
     }
 
     /// Return the u8 slice representing the requested buffer type.
-    fn get_buf(&self, buf_select: BufferSelect) -> &[u8] {
+    fn buf(&self, buf_select: BufferSelect) -> &[u8] {
         match buf_select {
-            BufferSelect::Back => {
-                bytemuck::cast_slice(&self.buf[self.back_buf][..])
-            }
-            BufferSelect::Front => {
-                bytemuck::cast_slice(&self.buf[self.front_buf][..])
-            }
+            BufferSelect::Back => bytemuck::cast_slice(&self.buf[self.back_buf][..]),
+            BufferSelect::Front => bytemuck::cast_slice(&self.buf[self.front_buf][..]),
         }
     }
 
-    fn get_display_buf(&self) -> &[u8] {
+    fn display_buf(&self) -> &[u8] {
         bytemuck::cast_slice(&self.buf[self.front_buf][..])
     }
 
-    fn get_clock_divisor(&self) -> u32 {
+    fn clock_divisor(&self) -> u32 {
         match self.sequencer.clocking_mode.dot_clock() {
             DotClock::Native => 1,
             DotClock::HalfClock => 2,
         }
     }
 
-    fn get_sync(&self) -> (bool, bool, bool, bool) {
+    fn sync(&self) -> (bool, bool, bool, bool) {
         (false, false, false, false)
     }
 
     /// Unimplemented for indirect rendering.
-    fn get_beam_pos(&self) -> Option<(u32, u32)> {
+    fn beam_pos(&self) -> Option<(u32, u32)> {
         Some((self.raster_x, self.raster_y))
     }
 
     /// Get the current scanline being rendered.
-    fn get_scanline(&self) -> u32 {
+    fn scanline(&self) -> u32 {
         0
     }
 
     /// Return whether to double scanlines produced by this adapter.
     /// For EGA, this is false in 16Mhz modes and true in 14Mhz modes
-    fn get_scanline_double(&self) -> bool {
+    fn is_scanline_doubled(&self) -> bool {
         self.extents.double_scan
     }
 
     /// Return the current refresh rate. For VGA, this can be 60Hz or 70Hz depending on mode.
-    fn get_refresh_rate(&self) -> f32 {
+    fn refresh_rate(&self) -> f32 {
         70.0
     }
 
     /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
-    fn get_start_address(&self) -> u16 {
+    fn start_address(&self) -> u16 {
         self.crtc.start_address()
     }
 
@@ -166,11 +162,11 @@ impl VideoCard for VGACard {
         }
     }
 
-    fn is_graphics_mode(&self) -> bool {
+    fn is_in_graphics_mode(&self) -> bool {
         self.mode_graphics
     }
 
-    fn get_cursor_info(&self) -> CursorInfo {
+    fn cursor_info(&self) -> CursorInfo {
         let addr = self.get_cursor_address();
 
         let span = self.crtc.get_cursor_span();
@@ -205,27 +201,27 @@ impl VideoCard for VGACard {
         }
     }
 
-    fn get_current_font(&self) -> Option<FontInfo> {
+    fn current_font(&self) -> Option<FontInfo> {
         None
     }
 
-    fn get_character_height(&self) -> u8 {
+    fn character_height(&self) -> u8 {
         self.crtc.maximum_scanline() + 1
     }
 
-    fn get_palette(&self) -> Option<Vec<[u8; 4]>> {
+    fn palette(&self) -> Option<Vec<[u8; 4]>> {
         Some(self.ac.color_registers_rgba.to_vec())
     }
 
     #[rustfmt::skip]
     #[allow(dead_code)]
     /// Returns a string representation of all the CRTC Registers.
-    fn get_videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
+    fn videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
         let mut map = HashMap::new();
 
         let mut general_vec = Vec::new();
-        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.get_video_type()))));
-        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.get_display_mode()))));
+        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.video_type()))));
+        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.display_mode()))));
         general_vec.push(("Pixel Clock:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.misc_output_register.clock_select()))));
         general_vec.push(("Clock Divisor:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.sequencer.clock_divisor))));
         general_vec.push((
@@ -288,7 +284,7 @@ impl VideoCard for VGACard {
             ));
         }
         map.insert("DACPalette".to_string(), dac_pal_vec);
-        
+
         map.insert("CRTC Counters".to_string(), self.crtc.get_counter_state());
 
         let mut internal_vec = Vec::new();
@@ -390,7 +386,7 @@ impl VideoCard for VGACard {
         self.reset_private();
     }
 
-    fn get_pixel_raw(&self, _x: u32, _y: u32) -> u8 {
+    fn pixel_raw(&self, _x: u32, _y: u32) -> u8 {
         /*        let mut byte = 0;
 
         let x_byte_offset = (x + self.attribute_pel_panning as u32) / 8;
@@ -430,15 +426,15 @@ impl VideoCard for VGACard {
         0
     }
 
-    fn get_pixel(&self, _x: u32, _y: u32) -> &[u8] {
+    fn pixel(&self, _x: u32, _y: u32) -> &[u8] {
         &DUMMY_PIXEL
     }
 
-    fn get_plane_slice(&self, plane: usize) -> &[u8] {
+    fn plane_slice(&self, plane: usize) -> &[u8] {
         self.sequencer.vram.plane_slice(plane)
     }
 
-    fn get_frame_count(&self) -> u64 {
+    fn frame_count(&self) -> u64 {
         self.frame
     }
 
@@ -447,7 +443,7 @@ impl VideoCard for VGACard {
             let mut filename = path.to_path_buf();
             filename.push(format!("vga_plane{}.bin", i));
 
-            match std::fs::write(filename.clone(), self.get_plane_slice(i)) {
+            match std::fs::write(filename.clone(), self.plane_slice(i)) {
                 Ok(_) => {
                     log::debug!("Wrote memory dump: {}", &filename.display())
                 }
@@ -457,13 +453,13 @@ impl VideoCard for VGACard {
             }
         }
 
-        let mut chain4_buf = Vec::with_capacity(self.get_plane_slice(0).len() * 4);
+        let mut chain4_buf = Vec::with_capacity(self.plane_slice(0).len() * 4);
 
         // In addition to the four planar dumps, we can dump a chain4 representation.
-        let iter1 = self.get_plane_slice(0).chunks_exact(4);
-        let iter2 = self.get_plane_slice(1).chunks_exact(4);
-        let iter3 = self.get_plane_slice(2).chunks_exact(4);
-        let iter4 = self.get_plane_slice(3).chunks_exact(4);
+        let iter1 = self.plane_slice(0).chunks_exact(4);
+        let iter2 = self.plane_slice(1).chunks_exact(4);
+        let iter3 = self.plane_slice(2).chunks_exact(4);
+        let iter4 = self.plane_slice(3).chunks_exact(4);
 
         for ((a, b), (c, d)) in iter1.zip(iter2).zip(iter3.zip(iter4)) {
             chain4_buf.push(a[0]);

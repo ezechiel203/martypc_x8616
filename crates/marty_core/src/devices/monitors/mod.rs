@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -25,27 +25,8 @@
     --------------------------------------------------------------------------
 */
 
-use super::{ppi_connector::PpiConnector, Motherboard};
-use crate::{devices::dipswitch::DipSwitch, machine_types::MachineType};
+//! Monitor module
 
-pub struct Ibm5150Motherboard {
-    pub machine_type: MachineType,
-    pub dips: Vec<DipSwitch>,
-}
-
-impl Ibm5150Motherboard {
-    pub fn new(machine_type: MachineType) -> Self {
-        Self {
-            machine_type,
-            dips: Vec::new(),
-        }
-    }
-}
-
-impl Motherboard for Ibm5150Motherboard {
-    fn add_dipswitch(&mut self, dip: DipSwitch) {
-        self.dips.push(dip);
-    }
-}
-
-impl PpiConnector for Ibm5150Motherboard {}
+pub mod ega;
+pub mod fifteen_hertz;
+pub mod mda;

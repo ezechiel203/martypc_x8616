@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -27,16 +27,15 @@
     devices::fantasy_ems.rs
 
     Implementation of a non-existent 'fantasy' 4MB EMS 4.0 Board
-     with conventional backfill, loosely based on the VLSI SCAMP
-      motherboard's register scheme.
+    with conventional backfill, loosely based on the VLSI SCAMP
+    motherboard's register scheme.
 
-      Pages 0-3 are the pages in the page frame beginning at
-        0xC000, 0xD000, or 0xE000 as per setting.
-      Pages 4-27 are the conventional page registers (0x4000 thru 0x9C00 )
+    Pages 0-3 are the pages in the page frame beginning at
+    0xC000, 0xD000, or 0xE000 as per setting.
 
-
-
+    Pages 4-27 are the conventional page registers (0x4000 thru 0x9C00 )
 */
+
 use crate::{
     bus::{BusInterface, DeviceRunTimeUnit, IoDevice, MemRangeDescriptor, MemoryMappedDevice, NO_IO_BYTE},
     cpu_common::{CpuAddress, LogicAnalyzer},
@@ -45,6 +44,7 @@ use crate::{
 
 use lazy_static::lazy_static;
 use regex::Regex;
+
 // todos/wishlist:
 // ? reset pages on reset/power off
 // Status window with current page frames
@@ -84,7 +84,7 @@ pub const FANTASY_WRITABLE_PAGE_COUNT: u8 = 36;
 pub const FANTASY_PAGE_COUNT: u8 = 52;
 
 // translates the 0x400 of the memory address into the appropriate page
-static PAGE_LOOKUP_TABLE: &'static [u8] = &[
+static PAGE_LOOKUP_TABLE: &[u8] = &[
     36, 37, 38, 39, // 0x00000 (inaccessible)
     40, 41, 42, 43, // 0x10000 (inaccessible)
     44, 45, 46, 47, // 0x20000 (inaccessible)
@@ -103,7 +103,7 @@ static PAGE_LOOKUP_TABLE: &'static [u8] = &[
     0, 0, 0, 0, // 0xF0000
 ];
 
-static PAGE_SEGMENT_LOOKUP: &'static [u16] = &[
+static PAGE_SEGMENT_LOOKUP: &[u16] = &[
     0xC000, 0xC400, 0xC800, 0xCC00, 0xD000, 0xD400, 0xD800, 0xDC00, 0xE000, 0xE400, 0xE800, 0xEC00, 0x4000, 0x4400,
     0x4800, 0x4C00, 0x5000, 0x5400, 0x5800, 0x5C00, 0x6000, 0x6400, 0x6800, 0x6C00, 0x7000, 0x7400, 0x7800, 0x7C00,
     0x8000, 0x8400, 0x8800, 0x8C00, 0x9000, 0x9400, 0x9800, 0x9C00, 0x0000, 0x0400, 0x0800, 0x0C00, 0x1000, 0x1400,
@@ -448,7 +448,7 @@ impl FantasyEmsCard {
         self.current_page_index = 0;
 
         // reset page registers
-        for (_i, page) in self.pages.iter_mut().enumerate() {
+        for page in &mut self.pages {
             page.page_addr = (page.unmapped_default as usize) << FANTASY_PAGE_SHIFT;
         }
     }
@@ -461,7 +461,7 @@ impl FantasyEmsCard {
         self.current_page_index = 0;
 
         // reset page registers
-        for (_i, page) in self.pages.iter_mut().enumerate() {
+        for page in &mut self.pages {
             page.page_addr = (page.unmapped_default as usize) << FANTASY_PAGE_SHIFT;
         }
     }
@@ -472,18 +472,15 @@ impl IoDevice for FantasyEmsCard {
         // Catch up to CPU state.
         //let _ticks = self.catch_up(delta, false);
         //self.rw_op(ticks, 0, port as u32, RwSlotType::Io);
-
-        if port == FANTASY_PAGE_SELECT_REGISTER {
-            self.current_page_index
-        }
-        else if port == FANTASY_PAGE_SET_REGISTER_LO {
-            (self.pages[self.current_page_index as usize].page_addr >> FANTASY_PAGE_SHIFT) as u8
-        }
-        else if port == FANTASY_PAGE_SET_REGISTER_HI {
-            (self.pages[self.current_page_index as usize].page_addr >> (FANTASY_PAGE_SHIFT + 8)) as u8
-        }
-        else {
-            NO_IO_BYTE
+        match port {
+            FANTASY_PAGE_SELECT_REGISTER => self.current_page_index,
+            FANTASY_PAGE_SET_REGISTER_LO => {
+                (self.pages[self.current_page_index as usize].page_addr >> FANTASY_PAGE_SHIFT) as u8
+            }
+            FANTASY_PAGE_SET_REGISTER_HI => {
+                (self.pages[self.current_page_index as usize].page_addr >> (FANTASY_PAGE_SHIFT + 8)) as u8
+            }
+            _ => NO_IO_BYTE,
         }
     }
 
@@ -495,42 +492,41 @@ impl IoDevice for FantasyEmsCard {
         _delta: DeviceRunTimeUnit,
         _analyzer: Option<&mut LogicAnalyzer>,
     ) {
-        if port == FANTASY_PAGE_SELECT_REGISTER {
-            if data >= FANTASY_WRITABLE_PAGE_COUNT {
-                log::warn!("Out of range page select register write! {}", data);
-                self.current_page_index = 0;
-            }
-            else {
-                self.current_page_index = data;
-            }
-
-            if (data & FANTASY_AUTOINCREMENT_PAGE_FLAG) == FANTASY_AUTOINCREMENT_PAGE_FLAG {
-                self.page_index_auto_increment_on = true;
-            }
-            else {
-                self.page_index_auto_increment_on = false;
-            }
-        }
-        else if port == FANTASY_PAGE_SET_REGISTER_LO {
-            self.current_page_set_register_lo_value = data;
-        }
-        else if port == FANTASY_PAGE_SET_REGISTER_HI {
-            let combined_data: u16 = ((data as u16) << 8) + (self.current_page_set_register_lo_value as u16);
-            if combined_data == 0xFFFF {
-                //log::warn!("Page {} Unset!", self.current_page_index);
-                self.page_reg_unmap(self.current_page_index);
-            }
-            else {
-                //log::warn!("Page set! {} as {}", self.current_page_index, data);
-                self.page_reg_write(self.current_page_index, combined_data);
-            }
-
-            if self.page_index_auto_increment_on {
-                self.current_page_index += 1;
-                if self.current_page_index >= FANTASY_WRITABLE_PAGE_COUNT {
+        match port {
+            FANTASY_PAGE_SELECT_REGISTER => {
+                if data >= FANTASY_WRITABLE_PAGE_COUNT {
+                    log::warn!("Out of range page select register write! {}", data);
                     self.current_page_index = 0;
                 }
+                else {
+                    self.current_page_index = data;
+                }
+
+                self.page_index_auto_increment_on =
+                    (data & FANTASY_AUTOINCREMENT_PAGE_FLAG) == FANTASY_AUTOINCREMENT_PAGE_FLAG;
             }
+            FANTASY_PAGE_SET_REGISTER_LO => {
+                self.current_page_set_register_lo_value = data;
+            }
+            FANTASY_PAGE_SET_REGISTER_HI => {
+                let combined_data: u16 = ((data as u16) << 8) + (self.current_page_set_register_lo_value as u16);
+                if combined_data == 0xFFFF {
+                    //log::warn!("Page {} Unset!", self.current_page_index);
+                    self.page_reg_unmap(self.current_page_index);
+                }
+                else {
+                    //log::warn!("Page set! {} as {}", self.current_page_index, data);
+                    self.page_reg_write(self.current_page_index, combined_data);
+                }
+
+                if self.page_index_auto_increment_on {
+                    self.current_page_index += 1;
+                    if self.current_page_index >= FANTASY_WRITABLE_PAGE_COUNT {
+                        self.current_page_index = 0;
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -552,9 +548,9 @@ impl MemoryMappedDevice for FantasyEmsCard {
         let page = PAGE_LOOKUP_TABLE[(address & FANTASY_PAGE_MASK) >> FANTASY_PAGE_SHIFT] as usize;
         let ems_addr = self.pages[page].page_addr + (address & FANTASY_BASE_MASK);
 
-        if ems_addr == 0x9C000 {
-            // self.set_breakpoint_flag();
-        }
+        // if ems_addr == 0x9C000 {
+        //     // self.set_breakpoint_flag();
+        // }
 
         (self.mem[ems_addr], 0)
     }
@@ -599,6 +595,7 @@ impl MemoryMappedDevice for FantasyEmsCard {
         0
     }
 
+    #[expect(clippy::vec_init_then_push)]
     fn get_mapping(&self) -> Vec<MemRangeDescriptor> {
         let mut mapping = Vec::new();
 

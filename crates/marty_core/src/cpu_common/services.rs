@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -51,7 +51,6 @@ pub struct CPUDebugServices {
     pub listing_filename: Option<PathBuf>,
     pub listing: BTreeMap<(u16, u16), ListingEntry>,
 }
-
 
 impl CPUDebugServices {
     pub fn new(listing_path: Option<PathBuf>) -> Self {

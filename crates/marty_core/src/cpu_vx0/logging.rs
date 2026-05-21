@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -121,7 +121,9 @@ impl NecVx0 {
     }
 
     pub fn emit_header(&mut self) {
-        if self.trace_mode == TraceMode::CycleSigrok { self.trace_print("Time(s),addr,clk,ready,qs,s,clk0,intr,dr0,holda,vs,hs,den,brd") }
+        if self.trace_mode == TraceMode::CycleSigrok {
+            self.trace_print("Time(s),addr,clk,ready,qs,s,clk0,intr,dr0,holda,vs,hs,den,brd")
+        }
     }
 
     pub fn trace_csv_line(&mut self) {
@@ -133,7 +135,7 @@ impl NecVx0 {
         let mut den = 0;
         let mut brd = 0;
         if let Some(video) = self.bus().primary_video() {
-            let (vs_b, hs_b, den_b, brd_b) = video.get_sync();
+            let (vs_b, hs_b, den_b, brd_b) = video.sync();
             vs = vs_b as u8;
             hs = hs_b as u8;
             den = den_b as u8;

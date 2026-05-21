@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -24,19 +24,3 @@
 
     --------------------------------------------------------------------------
 */
-
-//! Define the Compaq XT motherboard, used by the Compaq Portable and Compaq Deskpro machines.
-use super::{ppi_connector::PpiConnector, Motherboard};
-use crate::devices::dipswitch::DipSwitch;
-
-pub struct CompaqXtMotherboard {
-    pub dips: Vec<DipSwitch>,
-}
-
-impl Motherboard for CompaqXtMotherboard {
-    fn add_dipswitch(&mut self, dip: DipSwitch) {
-        self.dips.push(dip);
-    }
-}
-
-impl PpiConnector for CompaqXtMotherboard {}

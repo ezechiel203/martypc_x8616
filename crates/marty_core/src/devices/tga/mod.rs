@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -2617,7 +2617,7 @@ impl TGACard {
                         std::cmp::min(12, self.crtc_sync_width)
                     }
                     else {
-                        6
+                        std::cmp::min(6, self.crtc_sync_width)
                     }
                 }
                 _ => {
@@ -2630,7 +2630,7 @@ impl TGACard {
                         std::cmp::min(10, self.crtc_sync_width)
                     }
                     else {
-                        5
+                        std::cmp::min(5, self.crtc_sync_width)
                     }
                 }
             };

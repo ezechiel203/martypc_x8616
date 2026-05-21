@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -25,24 +25,18 @@
     --------------------------------------------------------------------------
 */
 
-//! The PpiConnector trait defines how a system connects to the three ports of
-//! the 8255 PPI chip. This is used to abstract the PPI chip from system specific
-//! implementations.
+pub const NTSC_CLOCK: f64 = 315.0 / 22.0;
+pub const NTSC_HORIZ_REFRESH: f64 = NTSC_CLOCK / 912.0 * 1_000_000.0;
+pub const NTSC_VERT_REFRESH: f64 = NTSC_CLOCK / (912.0 * 262.0) * 1_000_000.0;
 
-pub enum PpiPort {
-    PortA,
-    PortB,
-    PortC,
+pub enum VideoSyncPolarity {
+    Negative,
+    Positive,
 }
 
-pub trait PpiConnector {
-    /// Read a byte from the specified port.
-    fn read(&mut self, _port: PpiPort) -> u8 {
-        0
-    }
-
-    /// Write a byte to the specified port.
-    fn write(&mut self, _port: PpiPort, _data: u8) {
-        // Do nothing by default
-    }
+pub struct VideoSyncState {
+    pub vsync: bool,
+    pub vsync_polarity: VideoSyncPolarity,
+    pub hsync: bool,
+    pub hsync_polarity: VideoSyncPolarity,
 }

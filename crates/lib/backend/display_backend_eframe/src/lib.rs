@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -60,6 +60,14 @@ pub struct EFrameBackend {
 impl EFrameBackend {
     pub fn new(ctx: egui::Context) -> Result<EFrameBackend, Error> {
         Ok(EFrameBackend { ctx })
+    }
+
+    pub fn backend_name(&self) -> &str {
+        "egui"
+    }
+
+    pub fn adapter_name(&self) -> &str {
+        ""
     }
 }
 

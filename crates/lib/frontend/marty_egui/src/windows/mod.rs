@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -41,6 +41,8 @@ pub mod data_visualizer;
 pub mod delay_adjust;
 pub mod device_control;
 pub mod dma_viewer;
+pub(crate) mod ems_virtual_memory_viewer;
+pub(crate) mod fantasy_ems_stats_viewer;
 pub mod fdc_viewer;
 pub mod floppy_viewer;
 #[cfg(feature = "markdown")]
@@ -60,5 +62,3 @@ pub mod sn_viewer;
 pub mod text_mode_viewer;
 pub mod vhd_creator;
 pub mod videocard_viewer;
-pub(crate) mod fantasy_ems_stats_viewer;
-pub(crate) mod ems_virtual_memory_viewer;

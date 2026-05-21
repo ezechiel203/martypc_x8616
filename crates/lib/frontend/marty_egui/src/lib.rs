@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -460,7 +460,7 @@ lazy_static! {
                 resizable: false,
             },
         ),
-                (
+        (
             GuiWindow::FantasyEMSStatsViewer,
             WorkspaceWindowDef {
                 id: GuiWindow::FantasyEMSStatsViewer,

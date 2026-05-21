@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -61,7 +61,7 @@ impl IoDevice for EGACard {
                 // Don't answer this port if we are in MDA compatibility mode
                 match self.misc_output_register.io_address_select() {
                     IoAddressSelect::CompatMonochrome => 0xFF,
-                    IoAddressSelect::CompatCGA => self.read_input_status_register_1(),
+                    IoAddressSelect::CompatCGA => self.crtc.read_crtc_register(),
                 }
             }
             CRTC_REGISTER_MDA => {
@@ -111,6 +111,9 @@ impl IoDevice for EGACard {
             SEQUENCER_ADDRESS_REGISTER => self.sequencer.write_address(data),
             SEQUENCER_DATA_REGISTER => {
                 self.sequencer.write_data(data);
+                if self.sequencer.clock_change_pending {
+                    self.update_clock();
+                }
                 self.recalculate_mode();
             }
             ATTRIBUTE_REGISTER | ATTRIBUTE_REGISTER_ALT => {

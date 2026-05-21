@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -52,7 +52,6 @@ pub mod machine;
 pub mod machine_config;
 pub mod machine_types;
 pub mod memerror;
-pub mod motherboards;
 #[cfg(feature = "sound")]
 pub mod sound;
 pub mod syntax_token;
@@ -60,6 +59,7 @@ pub mod tracelogger;
 pub mod updatable;
 pub mod util;
 pub mod vhd;
+pub mod video_pll;
 
 #[cfg(feature = "arduino_validator")]
 #[macro_use]

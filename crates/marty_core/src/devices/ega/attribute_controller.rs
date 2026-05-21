@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -166,7 +166,7 @@ impl AttributePaletteEntry {
 
 pub struct AttributeController {
     register_flipflop: AttributeRegisterFlipFlop,
-    register_select_byte: u8,
+    attribute_address: AttributeAddress,
     register_selected: AttributeRegister,
     pub palette_registers: [AttributePaletteEntry; 16],
     palette_index: usize,
@@ -186,7 +186,7 @@ impl Default for AttributeController {
     fn default() -> Self {
         Self {
             register_flipflop: AttributeRegisterFlipFlop::Address,
-            register_select_byte: 0,
+            attribute_address: AttributeAddress::from_bytes([0x20]),
             register_selected: AttributeRegister::Palette0,
             palette_registers: [Default::default(); 16],
             palette_index: 0,
@@ -220,10 +220,11 @@ impl AttributeController {
     pub fn write_attribute_register(&mut self, byte: u8) {
         match self.register_flipflop {
             AttributeRegisterFlipFlop::Address => {
+                self.attribute_address = AttributeAddress::from_bytes([byte]);
                 if byte <= 0x0F {
                     self.palette_index = byte as usize;
                 }
-                self.register_selected = match byte & 0x1F {
+                self.register_selected = match self.attribute_address.address() {
                     0x00 => AttributeRegister::Palette0,
                     0x01 => AttributeRegister::Palette1,
                     0x02 => AttributeRegister::Palette2,
@@ -270,9 +271,11 @@ impl AttributeController {
                     | AttributeRegister::PaletteD
                     | AttributeRegister::PaletteE
                     | AttributeRegister::PaletteF => {
-                        //self.palette_registers[self.palette_index] = APaletteRegister::from_bytes([byte]);
-                        //log::debug!("set palette index {} to {:08b}", self.palette_index, byte );
-                        self.palette_registers[self.palette_index].set(byte);
+                        if self.attribute_address.address_source() == 0 {
+                            //self.palette_registers[self.palette_index] = APaletteRegister::from_bytes([byte]);
+                            //log::debug!("set palette index {} to {:08b}", self.palette_index, byte );
+                            self.palette_registers[self.palette_index].set(byte);
+                        }
                     }
                     AttributeRegister::ModeControl => {
                         self.mode_control = AModeControl::from_bytes([byte]);
@@ -313,7 +316,7 @@ impl AttributeController {
 
     /// Load the attribute controller with a new AttributeInput.
     /// Should be called after shift_outX to make room for the new character clock worth of data.
-    pub fn load(&mut self, input: AttributeInput, clock_select: ClockSelect, den: bool) {
+    pub fn load(&mut self, input: AttributeInput, six_bit_color: bool, den: bool) {
         let mut ai = input;
         // The attribute controller will emit the border color when display enable is low.
         if !den && (den == self.last_den) {
@@ -344,20 +347,20 @@ impl AttributeController {
                 //self.shift_reg |= BYTE_EXTEND_TABLE64[EgaDefaultColor6Bpp::GreenBright as usize] as u128;
                 self.shift_reg |= BYTE_EXTEND_TABLE64[self.overscan_color.six as usize] as u128;
             }
-            AttributeInput::Serial(data) => match clock_select {
-                ClockSelect::Clock14 => {
+            AttributeInput::Serial(data) => {
+                if six_bit_color {
                     for (i, byte) in data.iter().enumerate() {
                         let color = *byte & self.color_plane_enable.enable_plane();
-                        self.shift_reg |= (self.palette_registers[color as usize].four_to_six as u128) << ((7 - i) * 8);
+                        self.shift_reg |= (self.palette(color) as u128) << ((7 - i) * 8);
                     }
                 }
-                _ => {
+                else {
                     for (i, byte) in data.iter().enumerate() {
                         let color = *byte & self.color_plane_enable.enable_plane();
-                        self.shift_reg |= (self.palette_registers[color as usize].six as u128) << ((7 - i) * 8);
+                        self.shift_reg |= (self.palette_four(color) as u128) << ((7 - i) * 8);
                     }
                 }
-            },
+            }
             AttributeInput::Serial64(data) => {
                 self.shift_reg |= (data & self.color_plane_enable64) as u128;
             }
@@ -371,12 +374,12 @@ impl AttributeController {
                         resolved_glyph |= (*byte as u64) << ((7 - i) * 8);
                     }
                 }
-                resolved_glyph = self.apply_attribute(resolved_glyph, attr, clock_select);
+                resolved_glyph = self.apply_attribute(resolved_glyph, attr, six_bit_color);
                 self.shift_reg |= resolved_glyph as u128;
             }
             AttributeInput::Parallel64(data, attr, cursor) => {
                 let resolved_glyph = if cursor { ALL_SET64 } else { data };
-                self.shift_reg |= self.apply_attribute(resolved_glyph, attr, clock_select) as u128;
+                self.shift_reg |= self.apply_attribute(resolved_glyph, attr, six_bit_color) as u128;
             }
         }
     }
@@ -455,7 +458,7 @@ impl AttributeController {
     }
 
     #[inline]
-    pub fn apply_attribute(&self, glyph_row_base: u64, attribute: u8, clock_select: ClockSelect) -> u64 {
+    pub fn apply_attribute(&self, glyph_row_base: u64, attribute: u8, six_bit_color: bool) -> u64 {
         let mut fg_index = (attribute & 0x0F) as usize;
         let mut bg_index = (attribute >> 4) as usize;
 
@@ -472,35 +475,41 @@ impl AttributeController {
             }
         }
 
-        let fg_color;
-        let bg_color;
-
-        match clock_select {
-            ClockSelect::Clock14 => {
-                fg_color = self.palette_registers[fg_index].four_to_six as usize;
-                bg_color = self.palette_registers[bg_index].four_to_six as usize;
-            }
-            _ => {
-                fg_color = self.palette_registers[fg_index].six as usize;
-                bg_color = self.palette_registers[bg_index].six as usize;
-            }
+        let (fg_color, bg_color) = if six_bit_color {
+            (
+                self.palette(fg_index as u8) as usize,
+                self.palette(bg_index as u8) as usize,
+            )
         }
+        else {
+            (
+                self.palette_four(fg_index as u8) as usize,
+                self.palette_four(bg_index as u8) as usize,
+            )
+        };
 
         // Combine glyph mask with foreground and background colors.
         glyph_row_base & EGA_COLORS_U64[fg_color] | !glyph_row_base & EGA_COLORS_U64[bg_color]
     }
 
     pub fn palette(&self, pel: u8) -> u8 {
+        if self.attribute_address.address_source() == 0 {
+            return 0;
+        }
         self.palette_registers[(pel & 0x0F) as usize].six
     }
 
     pub fn palette_four(&self, pel: u8) -> u8 {
+        if self.attribute_address.address_source() == 0 {
+            return 0;
+        }
         self.palette_registers[(pel & 0x0F) as usize].four_to_six
     }
 
     #[rustfmt::skip]
     pub fn get_state(&self) -> Vec<(String, VideoCardStateEntry)> {
         let mut attribute_vec = Vec::new();
+        attribute_vec.push((String::from("AttributeAddress [pas]"), VideoCardStateEntry::String(format!("{}", self.attribute_address.address_source() != 0))));
         attribute_vec.push((format!("{:?} [mode]", AttributeRegister::ModeControl), VideoCardStateEntry::String(format!("{:?}", self.mode_control.mode()))));
         attribute_vec.push((format!("{:?} [disp]", AttributeRegister::ModeControl), VideoCardStateEntry::String(format!("{:?}", self.mode_control.display_type()))));
         attribute_vec.push((format!("{:?} [elgc]", AttributeRegister::ModeControl), VideoCardStateEntry::String(format!("{:?}", self.mode_control.enable_line_character_codes()))));

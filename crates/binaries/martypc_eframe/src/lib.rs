@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -35,6 +35,10 @@ pub mod input;
 pub mod sound;
 pub mod timestep_update;
 
+pub mod build_info {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;
 #[cfg(not(target_arch = "wasm32"))]
@@ -48,3 +52,13 @@ pub use wasm::worker::{self, PlatformRenderCallback};
 
 // Embed default icon
 pub const MARTY_ICON: &[u8] = include_bytes!("../../../../assets/martypc_icon_small.png");
+
+pub fn build_id() -> &'static str {
+    build_info::GIT_COMMIT_HASH
+        .and_then(|hash| hash.get(..6))
+        .unwrap_or("000000")
+}
+
+pub fn version_string() -> String {
+    format!("{} [{}]", env!("CARGO_PKG_VERSION"), build_id())
+}

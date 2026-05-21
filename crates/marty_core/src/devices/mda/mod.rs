@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -47,7 +47,8 @@ mod videocard;
 
 use crate::{
     bus::{BusInterface, DeviceRunTimeUnit},
-    device_traits::videocard::*,
+    device_traits::{monitor::Monitor, videocard::*},
+    devices::monitors::mda::MdaMonitor,
     tracelogger::TraceLogger,
 };
 
@@ -118,30 +119,48 @@ const DEFAULT_CHAR_CLOCK: u32 = 9; // On the MDA these are fixed and do not chan
 //const DEFAULT_CHAR_CLOCK_MASK: u64 = 0x0F;      // MDA's 9-dot character clock is not easily represented in binary
 //const DEFAULT_CHAR_CLOCK_ODD_MASK: u64 = 0x1F;
 
-// Unlike the CGA, the MDA has its own on-board crystal and does not run at the system bus clock.
-// MDA is clocked at 16.257Mhz and runs at 50Hz refresh rate and 18.432kHz horizontal scan rate.
-//  16,257,000 / 50 = 325,140 dots per frame
-//  325,140 / 18.432kHz = 882 dots per scanline
-//  882 / 9 = 98 maximum horizontal total characters
-//  325,140 / 882 = ~368.639 scanlines per frame (??)
-//const CDA_CLOCK: f64 = 14.318180;
-const MDA_CLOCK: f64 = 16.257;
-const HGC_CLOCK: f64 = 16.000;
+/*
+    Default values programmed for MDA 80 column text mode:
+    R0: Horizontal Total:      97  (+1)
+    R1: Horizontal Displayed:  80
+    R2: Horizontal Sync Pos:   82
+    R3: Horizontal Sync Width: 15
+    R4: Vertical Total:        25  (+1)
+    R5: Vertical Total Adjust:  6
+    R6: Vertical Displayed:    25
+    R7: Vertical Sync Pos:     25
+    R8: Interlace Mode:         2
+    R9: Maximum Scanline:      13
+
+    Unlike the CGA, the MDA has its own on-board crystal and does not run at the system bus clock.
+    MDA is clocked at 16.257Mhz and runs at ~50Hz refresh rate and 18.432kHz horizontal scan rate.
+
+    Maximum scanline hdots: 98 * 9 = 882
+    Maximum scanlines: 26 * 14 + 6 = 370
+    Normal clocks per frame: 882 * 370 = 326,340
+    Normal vsync frequency: 16,257,000 / 326,340 = 49.816Hz.
+    Normal hsync frequency: 16,257,000 / 882 = 18.432kHz.
+*/
+
+pub const MDA_CLOCK: f64 = 16.257;
+pub const HGC_CLOCK: f64 = 16.000;
+
+pub const MDA_HORIZ_REFRESH: f64 = MDA_CLOCK / MDA_XRES_MAX as f64 * 1_000_000.0; // ~18.432kHz.
+pub const MDA_VERT_REFRESH: f64 = MDA_CLOCK / (MDA_XRES_MAX as f64 * MDA_SCANLINE_MAX as f64) * 1_000_000.0; // ~49.816Hz.
 
 const US_PER_CLOCK: f64 = 1.0 / MDA_CLOCK;
 const US_PER_FRAME: f64 = 1.0 / 50.0;
 
 pub const MDA_BLINK_FAST_RATE: u8 = 8;
 
-pub const MDA_MAX_CLOCK: usize = ((MDA_XRES_MAX * MDA_YRES_MAX) as usize & !0x07) + 8;
-pub const HGC_MAX_CLOCK: usize = ((HGC_XRES_MAX * MDA_YRES_MAX) as usize & !0x07) + 8;
+pub const MDA_MAX_CLOCK: usize = ((MDA_XRES_MAX * MDA_SCANLINE_MAX) as usize & !0x07) + 8;
+pub const HGC_MAX_CLOCK: usize = ((HGC_XRES_MAX * MDA_SCANLINE_MAX) as usize & !0x07) + 8;
 //pub const MDA_MAX_CLOCK: usize = 325140; // 16,257,000 / 50
 
 // Calculate the maximum possible area of display field (including refresh period)
-const MDA_XRES_MAX: u32 = (CRTC_R0_HORIZONTAL_MAX + 1) * MDA_CHAR_CLOCK as u32; // 882
-                                                                                //const HGC_XRES_MAX: u32 = MDA_XRES_MAX - 2;
+const MDA_XRES_MAX: u32 = (CRTC_R0_HORIZONTAL_MAX + 1) * MDA_CHAR_CLOCK as u32;
 const HGC_XRES_MAX: u32 = 912;
-const MDA_YRES_MAX: u32 = 369; // Actual value works out to 325,140 / 882 or 368.639
+const MDA_SCANLINE_MAX: u32 = 370;
 
 // Monitor sync position. The monitor will eventually perform an hsync at a fixed position
 // if hsync signal is late from the CGA card.
@@ -261,20 +280,20 @@ const CGA_DEBUG_U64: [u64; 16] = [
 const MDA_APERTURE_CROPPED_W: u32 = 720;
 const MDA_APERTURE_CROPPED_H: u32 = 350;
 const MDA_APERTURE_CROPPED_X: u32 = 9;
-const MDA_APERTURE_CROPPED_Y: u32 = 4;
+const MDA_APERTURE_CROPPED_Y: u32 = 20;
 
 const MDA_APERTURE_NORMAL_W: u32 = 738;
 const MDA_APERTURE_NORMAL_H: u32 = 354;
 const MDA_APERTURE_NORMAL_X: u32 = 0;
-const MDA_APERTURE_NORMAL_Y: u32 = 0;
+const MDA_APERTURE_NORMAL_Y: u32 = 18;
 
 const MDA_APERTURE_FULL_W: u32 = 738;
 const MDA_APERTURE_FULL_H: u32 = 354;
 const MDA_APERTURE_FULL_X: u32 = 0;
-const MDA_APERTURE_FULL_Y: u32 = 0;
+const MDA_APERTURE_FULL_Y: u32 = 18;
 
 const MDA_APERTURE_DEBUG_W: u32 = MDA_XRES_MAX;
-const MDA_APERTURE_DEBUG_H: u32 = MDA_YRES_MAX;
+const MDA_APERTURE_DEBUG_H: u32 = MDA_SCANLINE_MAX;
 const MDA_APERTURE_DEBUG_X: u32 = 0;
 const MDA_APERTURE_DEBUG_Y: u32 = 0;
 
@@ -447,11 +466,14 @@ pub struct MDACard {
     char_clock:    u32,
 
     // Monitor stuff
+    emulate_sync: bool,
+    monitor_emulation: bool,
+    monitor: MdaMonitor,
+    in_card_vsync: bool,
+    last_card_hsync: bool,
+    last_card_vblank: bool,
     beam_x: u32,
     beam_y: u32,
-    in_monitor_hsync: bool,
-    in_monitor_vblank: bool,
-    monitor_hsc: u32,
     scanline: u32,
     row_span: u32,
     missed_hsyncs: u32,
@@ -544,7 +566,7 @@ impl MdaDefault for DisplayExtents {
         Self {
             apertures: MDA_APERTURES.to_vec(),
             field_w: MDA_XRES_MAX,
-            field_h: MDA_YRES_MAX,
+            field_h: MDA_SCANLINE_MAX,
             row_stride: MDA_XRES_MAX as usize,
             double_scan: false,
             mode_byte: 0,
@@ -601,11 +623,14 @@ impl Default for MDACard {
             clock_divisor: DEFAULT_CLOCK_DIVISOR,
             clock_mode: ClockingMode::Character,
             char_clock: DEFAULT_CHAR_CLOCK,
+            emulate_sync: true,
+            monitor_emulation: true,
+            monitor: MdaMonitor::default(),
+            in_card_vsync: true,
+            last_card_hsync: false,
+            last_card_vblank: false,
             beam_x: 0,
             beam_y: 0,
-            in_monitor_hsync: false,
-            in_monitor_vblank: false,
-            monitor_hsc: 0,
             scanline: 0,
             row_span: MDA_XRES_MAX,
             missed_hsyncs: 0,
@@ -1097,7 +1122,7 @@ impl MDACard {
 
     #[inline]
     pub fn is_box_char(glyph: u8) -> bool {
-        (0xB0u8..=0xDFu8).contains(&glyph)
+        glyph & MDA_REPEAT_COL_MASK == MDA_REPEAT_COL_VAL
     }
 
     pub fn get_screen_ticks(&self) -> u64 {
@@ -1145,7 +1170,6 @@ impl MDACard {
         if self.beam_x >= MDA_XRES_MAX {
             self.beam_x = 0;
             self.beam_y += 1;
-            self.in_monitor_hsync = false;
             self.rba = (MDA_XRES_MAX * self.beam_y) as usize;
         }
 
@@ -1204,7 +1228,6 @@ impl MDACard {
         if self.beam_x >= HGC_XRES_MAX {
             self.beam_x = 0;
             self.beam_y += 1;
-            self.in_monitor_hsync = false;
             self.rba = (HGC_XRES_MAX * self.beam_y) as usize;
         }
 
@@ -1215,16 +1238,46 @@ impl MDACard {
     pub fn handle_crtc_tick(&mut self) {
         let (status, vma) = self.crtc.tick(&mut self.hblank_fn);
         // Destructure status so that we can drop the borrow
-        let CrtcStatus { hsync, vsync, .. } = *status;
-        if vsync {
-            //log::warn!(" ************** VSYNC ****************** ");
-            self.do_vsync();
-        }
-        if hsync {
-            self.do_hsync();
-        }
+        let CrtcStatus { hsync, vblank, .. } = *status;
+        self.in_card_vsync = !vblank;
+        self.tick_monitor(self.char_clock, hsync, vblank);
         self.fetch_char(vma);
         self.vma = vma as usize;
+    }
+
+    #[inline]
+    pub fn tick_monitor(&mut self, ticks: u32, hsync: bool, vblank: bool) {
+        if !self.monitor_emulation {
+            if hsync && !self.last_card_hsync {
+                self.do_hsync();
+            }
+            if vblank && !self.last_card_vblank {
+                self.do_vsync();
+            }
+            self.last_card_hsync = hsync;
+            self.last_card_vblank = vblank;
+            return;
+        }
+
+        let mut do_horizontal_flyback = false;
+        let mut do_vertical_flyback = false;
+        self.monitor.run(
+            ticks,
+            hsync,
+            self.in_card_vsync,
+            &mut || {
+                do_horizontal_flyback = true;
+            },
+            &mut || {
+                do_vertical_flyback = true;
+            },
+        );
+        if do_horizontal_flyback {
+            self.do_hsync();
+        }
+        if do_vertical_flyback {
+            self.do_vsync();
+        }
     }
 
     pub fn debug_tick2(&mut self) {
@@ -1254,7 +1307,6 @@ impl MDACard {
         if self.beam_x == MDA_XRES_MAX {
             self.beam_x = 0;
             self.beam_y += 1;
-            self.in_monitor_hsync = false;
             self.rba = (MDA_XRES_MAX * self.beam_y) as usize;
         }
 
@@ -1359,7 +1411,6 @@ impl MDACard {
         if self.beam_x == MDA_XRES_MAX {
             self.beam_x = 0;
             self.beam_y += 1;
-            self.in_monitor_hsync = false;
             self.rba = (MDA_XRES_MAX * self.beam_y) as usize;
         }
 

@@ -15,15 +15,13 @@ members = [
     "crates/lib/frontend/marty_web_helpers",
     "crates/binaries/martypc_headless",
     "crates/binaries/martypc_eframe",
-    "crates/binaries/martypc_launcher",
-    "crates/binaries/martypc_web_player_wgpu",
-    "crates/binaries/martypc_desktop_wgpu"
+    "crates/binaries/martypc_launcher"
 ]
 resolver = "2"
 default-members = ["crates/binaries/martypc_eframe"]
 
 [workspace.package]
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 rust-version = "1.76"
 license = "MIT"
@@ -40,7 +38,7 @@ anyhow = "1.0"
 log = "0.4.20"
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0"
-serialport = { git = "https://github.com/dbalsom/serialport-rs", branch = "arduino-fix" }
+serialport = "4.7.3"
 web-time = "1.1.0"
 toml = "0.8"
 rustc-hash = "2.1"

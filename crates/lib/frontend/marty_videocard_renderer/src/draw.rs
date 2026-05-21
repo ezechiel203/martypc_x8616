@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -409,10 +409,10 @@ impl VideoRenderer {
         let mut horiz_adjust = aperture.x;
         let mut vert_adjust = aperture.y;
         // Ignore aperture adjustments if it pushes us outside the field boundaries
-        if aperture.x + aperture.w >= extents.field_w {
+        if aperture.x + aperture.w > extents.field_w {
             horiz_adjust = 0;
         }
-        if aperture.y + aperture.h >= extents.field_h {
+        if aperture.y + aperture.h > extents.field_h {
             vert_adjust = 0;
         }
 
@@ -650,10 +650,10 @@ impl VideoRenderer {
         let mut horiz_adjust = aperture.x;
         let mut vert_adjust = aperture.y;
         // Ignore aperture adjustments if it pushes us outside of the field boundaries
-        if aperture.x + aperture.w >= extents.field_w {
+        if aperture.x + aperture.w > extents.field_w {
             horiz_adjust = 0;
         }
-        if aperture.y + aperture.h >= extents.field_h {
+        if aperture.y + aperture.h > extents.field_h {
             vert_adjust = 0;
         }
 
@@ -690,10 +690,10 @@ impl VideoRenderer {
         let mut horiz_adjust = aperture.x;
         let mut vert_adjust = aperture.y;
         // Ignore aperture adjustments if it pushes us outside of the field boundaries
-        if aperture.x + aperture.w >= extents.field_w {
+        if aperture.x + aperture.w > extents.field_w {
             horiz_adjust = 0;
         }
-        if aperture.y + aperture.h >= extents.field_h {
+        if aperture.y + aperture.h > extents.field_h {
             vert_adjust = 0;
         }
 
@@ -711,8 +711,8 @@ impl VideoRenderer {
             return;
         }
 
-        let max_y = std::cmp::min(h, aperture.h + aperture.x);
-        let max_x = std::cmp::min(w, aperture.w + aperture.y);
+        let max_y = std::cmp::min(h, aperture.h);
+        let max_x = std::cmp::min(w, aperture.w);
 
         //log::debug!("w: {w} h: {h} max_x: {max_x}, max_y: {max_y}");
 
@@ -812,10 +812,10 @@ impl VideoRenderer {
         let mut horiz_adjust = aperture.x;
         let mut vert_adjust = aperture.y;
         // Ignore aperture adjustments if it pushes us outside of the field boundaries
-        if aperture.x + aperture.w >= extents.field_w {
+        if aperture.x + aperture.w > extents.field_w {
             horiz_adjust = 0;
         }
-        if aperture.y + aperture.h >= extents.field_h {
+        if aperture.y + aperture.h > extents.field_h {
             vert_adjust = 0;
         }
 
@@ -833,8 +833,8 @@ impl VideoRenderer {
             return;
         }
 
-        let max_y = std::cmp::min(h, aperture.h + aperture.x);
-        let max_x = std::cmp::min(w, aperture.w + aperture.y);
+        let max_y = std::cmp::min(h, aperture.h);
+        let max_x = std::cmp::min(w, aperture.w);
 
         //log::debug!("w: {w} h: {h} max_x: {max_x}, max_y: {max_y}");
 
@@ -866,10 +866,10 @@ impl VideoRenderer {
         let mut horiz_adjust = aperture.x;
         let mut vert_adjust = aperture.y;
         // Ignore aperture adjustments if it pushes us outside the field boundaries
-        if aperture.x + aperture.w >= extents.field_w {
+        if aperture.x + aperture.w > extents.field_w {
             horiz_adjust = 0;
         }
-        if aperture.y + aperture.h >= extents.field_h {
+        if aperture.y + aperture.h > extents.field_h {
             vert_adjust = 0;
         }
 
@@ -887,8 +887,8 @@ impl VideoRenderer {
             return;
         }
 
-        let max_y = std::cmp::min(h, aperture.h + aperture.x);
-        let max_x = std::cmp::min(w, aperture.w + aperture.y);
+        let max_y = std::cmp::min(h, aperture.h);
+        let max_x = std::cmp::min(w, aperture.w);
 
         //log::debug!("w: {w} h: {h} max_x: {max_x}, max_y: {max_y}");
 

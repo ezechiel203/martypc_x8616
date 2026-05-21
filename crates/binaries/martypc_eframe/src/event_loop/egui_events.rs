@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -150,7 +150,7 @@ pub fn handle_egui_event(
                     GuiEnum::DisplayAperture(aperture) => {
                         if let Some(vid) = dm.set_display_aperture(*dth, *aperture).ok().flatten() {
                             if let Some(video_card) = emu.machine.bus().video(&vid) {
-                                if let Err(e) = dm.on_card_resized(&vid, video_card.get_display_extents()) {
+                                if let Err(e) = dm.on_card_resized(&vid, video_card.display_extents()) {
                                     log::error!("Failed to set display aperture for display target: {:?}", e);
                                 }
                             }

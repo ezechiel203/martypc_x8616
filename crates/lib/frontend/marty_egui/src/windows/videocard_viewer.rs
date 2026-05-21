@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -132,6 +132,7 @@ impl GuiState {
 
             ui.vertical(|ui| {
                 GuiState::draw_register_file(ui, videocard_state, false, "CRTC Counters", "CRTC Counters".to_string());
+                GuiState::draw_register_file(ui, videocard_state, false,"Monitor", "Monitor Simulation".to_string());
                 GuiState::draw_register_file(ui, videocard_state, false,"Internal", "Internal Registers".to_string());
                 GuiState::draw_register_file(ui, videocard_state, false,"External", "External Registers".to_string());
                 GuiState::draw_register_file(ui, videocard_state, false,"Light Pen", "Light Pen".to_string());

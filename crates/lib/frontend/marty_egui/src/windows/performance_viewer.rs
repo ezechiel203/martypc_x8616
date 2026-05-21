@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -112,6 +112,14 @@ impl PerformanceViewerControl {
                                 egui::Grid::new("displays").striped(false).show(ui, |ui| {
                                     ui.label("Backend: ");
                                     ui.label(egui::RichText::new(dt.backend_name.clone()));
+                                    ui.end_row();
+                                    ui.label("Adapter: ");
+                                    ui.label(egui::RichText::new(if dt.adapter_name.is_empty() {
+                                        "N/A".to_string()
+                                    }
+                                    else {
+                                        dt.adapter_name.clone()
+                                    }));
                                     ui.end_row();
                                     if let Some(geom) = dt.scaler_geometry {
                                         ui.label("Scaler source resolution: ");

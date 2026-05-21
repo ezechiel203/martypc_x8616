@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -48,13 +48,14 @@ impl BusInterface {
     ///
     /// We provide the elapsed cycle count for the current instruction. This allows a device
     /// to optionally tick itself to bring itself in sync with CPU state.
+    #[allow(unused_variables)]
     pub fn io_read_u8(&mut self, port: u16, cycles: u32) -> u8 {
         // Convert cycles to system clock ticks
         let sys_ticks = match self.cpu_factor {
             ClockFactor::Divisor(d) => d as u32 * cycles,
             ClockFactor::Multiplier(m) => cycles / m as u32,
         };
-        let _delta_us = self.cpu_cycles_to_us(cycles);
+        let delta_us = self.cpu_cycles_to_us(cycles);
         let nul_delta = DeviceRunTimeUnit::Microseconds(0.0);
         let mut byte = None;
         if let Some(device_id) = self.io_map.get(&port) {
@@ -145,7 +146,7 @@ impl BusInterface {
                 {
                     #[cfg(feature = "opl")]
                     if let Some(adlib) = &mut self.adlib {
-                        byte = Some(adlib.read_u8(port, DeviceRunTimeUnit::Microseconds(_delta_us)));
+                        byte = Some(adlib.read_u8(port, DeviceRunTimeUnit::Microseconds(delta_us)));
                     }
                 }
                 _ => {}
@@ -209,6 +210,7 @@ impl BusInterface {
     ///
     /// We provide the elapsed cycle count for the current instruction. This allows a device
     /// to optionally tick itself to bring itself in sync with CPU state.
+    #[allow(unused_variables)]
     pub fn io_write_u8(&mut self, port: u16, data: u8, cycles: u32, analyzer: Option<&mut LogicAnalyzer>) {
         // Convert cycles to system clock ticks
         let sys_ticks = match self.cpu_factor {

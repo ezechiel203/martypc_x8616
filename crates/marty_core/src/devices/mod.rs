@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -53,6 +53,7 @@ pub mod lpt_card;
 pub mod lpt_port;
 pub mod mc6845;
 pub mod mda;
+pub mod monitors;
 pub mod mouse;
 pub mod null_sound;
 pub mod pic;

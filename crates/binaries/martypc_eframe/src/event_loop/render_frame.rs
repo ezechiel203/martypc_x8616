@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -49,7 +49,7 @@ pub fn render_frame(emu: &mut Emulator, dm: &mut EFrameDisplayManager) {
                     if emu.gui.get_option(GuiBoolean::ShowBackBuffer).unwrap_or(false) {
                         renderer.select_buffer(BufferSelect::Back);
                         if emu.gui.get_option(GuiBoolean::ShowRasterPosition).unwrap_or(false) {
-                            beam_pos = videocard.get_beam_pos();
+                            beam_pos = videocard.beam_pos();
                         }
                     }
                     else {
@@ -61,7 +61,7 @@ pub fn render_frame(emu: &mut Emulator, dm: &mut EFrameDisplayManager) {
                 }
             }
 
-            let extents = videocard.get_display_extents();
+            let extents = videocard.display_extents();
 
             // Update mode byte.
             if renderer.get_mode_byte() != extents.mode_byte {
@@ -72,11 +72,11 @@ pub fn render_frame(emu: &mut Emulator, dm: &mut EFrameDisplayManager) {
 
             //log::debug!("Drawing renderer for vid: {:?}", vid);
             renderer.draw(
-                videocard.get_buf(renderer.get_selected_buffer()),
+                videocard.buf(renderer.get_selected_buffer()),
                 backend_buf,
                 extents,
                 beam_pos,
-                videocard.get_palette(),
+                videocard.palette(),
             );
 
             // Since we have the card and renderer together here, this is a good time to update

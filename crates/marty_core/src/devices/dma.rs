@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -83,8 +83,7 @@ pub enum PriorityMode {
     Rotating,
 }
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum ServiceMode {
     #[default]
     Demand,
@@ -92,16 +91,14 @@ pub enum ServiceMode {
     Block,
     Cascade,
 }
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum AddressMode {
     #[default]
     Increment,
     Decrement,
 }
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum TransferType {
     #[default]
     Verify,
@@ -109,7 +106,6 @@ pub enum TransferType {
     Read,
     Illegal,
 }
-
 
 #[derive(Default)]
 pub struct DMAChannel {

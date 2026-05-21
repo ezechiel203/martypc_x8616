@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -31,11 +31,7 @@
 */
 
 use super::*;
-use crate::{
-    devices::{
-        pic::Pic,
-    },
-};
+use crate::devices::pic::Pic;
 
 // Helper macro for pushing video card state entries.
 // For CGA, we put the decorator first as there is only one register file an we use it to show the register index.
@@ -63,7 +59,7 @@ macro_rules! push_reg_str_enum {
 */
 
 impl VideoCard for TGACard {
-    fn get_sync(&self) -> (bool, bool, bool, bool) {
+    fn sync(&self) -> (bool, bool, bool, bool) {
         (
             self.in_crtc_vblank,
             self.in_crtc_hblank,
@@ -74,30 +70,29 @@ impl VideoCard for TGACard {
 
     fn set_video_option(&mut self, opt: VideoOption) {
         match opt {
-            VideoOption::EnableSnow(state) => {
-                log::debug!("VideoOption::EnableSnow set to: {}", state);
-                self.enable_snow = state;
-            }
             VideoOption::DebugDraw(state) => {
                 log::debug!("VideoOption::DebugDraw set to: {}", state);
                 self.debug_draw = state;
             }
+            _ => {
+                log::warn!("VideoOption::{:?} not supported for TGA", opt);
+            }
         }
     }
 
-    fn get_video_type(&self) -> VideoType {
+    fn video_type(&self) -> VideoType {
         VideoType::TGA
     }
 
-    fn get_render_mode(&self) -> RenderMode {
+    fn render_mode(&self) -> RenderMode {
         RenderMode::Direct
     }
 
-    fn get_render_depth(&self) -> RenderBpp {
+    fn render_depth(&self) -> RenderBpp {
         RenderBpp::Four
     }
 
-    fn get_display_mode(&self) -> DisplayMode {
+    fn display_mode(&self) -> DisplayMode {
         self.display_mode
     }
 
@@ -110,7 +105,7 @@ impl VideoCard for TGACard {
         self.clock_mode = mode;
     }
 
-    fn get_display_size(&self) -> (u32, u32) {
+    fn display_size(&self) -> (u32, u32) {
         // CGA supports a single fixed 8x8 font. The size of the displayed window
         // is always HorizontalDisplayed * (VerticalDisplayed * (MaximumScanlineAddress + 1))
         // (Excepting fancy CRTC tricks that delay vsync)
@@ -123,7 +118,7 @@ impl VideoCard for TGACard {
         (width, height)
     }
 
-    fn get_display_extents(&self) -> &DisplayExtents {
+    fn display_extents(&self) -> &DisplayExtents {
         &self.extents
     }
 
@@ -132,12 +127,12 @@ impl VideoCard for TGACard {
     }
 
     /// Get a vector of the standard display aperture definitions for this card.
-    fn get_display_apertures(&self) -> Vec<DisplayAperture> {
+    fn display_apertures(&self) -> Vec<DisplayAperture> {
         self.extents.apertures.clone()
     }
 
     /// Get the position of the electron beam.
-    fn get_beam_pos(&self) -> Option<(u32, u32)> {
+    fn beam_pos(&self) -> Option<(u32, u32)> {
         Some((self.beam_x, self.beam_y))
     }
 
@@ -156,7 +151,8 @@ impl VideoCard for TGACard {
                 for _ in 0..mchar_ticks {
                     if self.clock_divisor == 2 {
                         self.tick_mchar(cpumem.unwrap());
-                    } else {
+                    }
+                    else {
                         self.tick_hchar(cpumem.unwrap());
                         self.tick_hchar(cpumem.unwrap());
                     }
@@ -180,28 +176,29 @@ impl VideoCard for TGACard {
     }
 
     #[inline]
-    fn get_overscan_color(&self) -> u8 {
+    fn overscan_color(&self) -> u8 {
         if self.mode_hires_gfx {
             // In highres mode, the color control register controls the foreground color, not overscan
             // so overscan must be black.
             0
-        } else {
+        }
+        else {
             self.cc_altcolor
         }
     }
 
     /// Get the current scanline being rendered.
-    fn get_scanline(&self) -> u32 {
+    fn scanline(&self) -> u32 {
         self.scanline
     }
 
     /// Return whether to double scanlines for this video device. For CGA, this is always true.
-    fn get_scanline_double(&self) -> bool {
+    fn is_scanline_doubled(&self) -> bool {
         true
     }
 
     /// Return the u8 slice representing the requested buffer type.
-    fn get_buf(&self, buf_select: BufferSelect) -> &[u8] {
+    fn buf(&self, buf_select: BufferSelect) -> &[u8] {
         match buf_select {
             BufferSelect::Back => &self.buf[self.back_buf][..],
             BufferSelect::Front => &self.buf[self.front_buf][..],
@@ -209,12 +206,12 @@ impl VideoCard for TGACard {
     }
 
     /// Return the u8 slice representing the front buffer of the device. (Direct rendering only)
-    fn get_display_buf(&self) -> &[u8] {
+    fn display_buf(&self) -> &[u8] {
         &self.buf[self.front_buf][..]
     }
 
     /// Get the current display refresh rate of the device. For TGA, this is always 60.
-    fn get_refresh_rate(&self) -> f32 {
+    fn refresh_rate(&self) -> f32 {
         60.0
     }
 
@@ -232,16 +229,16 @@ impl VideoCard for TGACard {
     }
 
     #[inline]
-    fn is_graphics_mode(&self) -> bool {
+    fn is_in_graphics_mode(&self) -> bool {
         self.mode_graphics
     }
 
     /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
-    fn get_start_address(&self) -> u16 {
+    fn start_address(&self) -> u16 {
         (self.crtc_start_address_ho as u16) << 8 | self.crtc_start_address_lo as u16
     }
 
-    fn get_cursor_info(&self) -> CursorInfo {
+    fn cursor_info(&self) -> CursorInfo {
         let addr = self.get_cursor_address();
 
         match self.display_mode {
@@ -275,11 +272,11 @@ impl VideoCard for TGACard {
         }
     }
 
-    fn get_clock_divisor(&self) -> u32 {
+    fn clock_divisor(&self) -> u32 {
         1
     }
 
-    fn get_current_font(&self) -> Option<FontInfo> {
+    fn current_font(&self) -> Option<FontInfo> {
         Some(FontInfo {
             w: TGA_HCHAR_CLOCK as u32,
             h: CRTC_FONT_HEIGHT as u32,
@@ -287,22 +284,22 @@ impl VideoCard for TGACard {
         })
     }
 
-    fn get_character_height(&self) -> u8 {
+    fn character_height(&self) -> u8 {
         self.crtc_maximum_scanline_address + 1
     }
 
-    fn get_palette(&self) -> Option<Vec<[u8; 4]>> {
+    fn palette(&self) -> Option<Vec<[u8; 4]>> {
         None
     }
 
     #[rustfmt::skip]
-    fn get_videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
+    fn videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
         let mut map = HashMap::new();
 
         let mut general_vec = Vec::new();
 
-        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?} ({:?})", self.get_video_type(), self.subtype))));
-        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.get_display_mode()))));
+        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?} ({:?})", self.video_type(), self.subtype))));
+        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.display_mode()))));
         general_vec.push(("Video Enable:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode_enable))));
         general_vec.push(("Clock Divisor:".to_string(), VideoCardStateEntry::String(format!("{}", self.clock_divisor))));
         general_vec.push(("Frame Count:".to_string(), VideoCardStateEntry::String(format!("{}", self.frame_count))));
@@ -395,7 +392,7 @@ impl VideoCard for TGACard {
         video_vec.push(("video aperture:".into(), VideoCardStateEntry::String(format!("{:05X}", self.aperture_base))));
         video_vec.push(("CPU page:".into(), VideoCardStateEntry::String(format!("{:05X}", (self.aperture_base + self.cpu_page_offset) & 0xFFFFF))));
         video_vec.push(("CRT page:".into(), VideoCardStateEntry::String(format!("{:05X}", (self.aperture_base + self.crt_page_offset) & 0xFFFFF))));
-        
+
         map.insert("VideoArray".to_string(), video_vec);
 
         let mut pal_vec = Vec::new();
@@ -436,7 +433,8 @@ impl VideoCard for TGACard {
     fn run(&mut self, time: DeviceRunTimeUnit, pic: &mut Option<Box<Pic>>, cpumem: Option<&[u8]>) {
         let mut hdots = if let DeviceRunTimeUnit::SystemTicks(ticks) = time {
             ticks
-        } else {
+        }
+        else {
             panic!("TGA requires SystemTicks time unit.")
         };
 
@@ -540,7 +538,7 @@ impl VideoCard for TGACard {
                 //         self.blink_state = !self.blink_state;
                 //         self.blink_accum_clocks -= CGA_CURSOR_BLINK_RATE_CLOCKS;
                 //     }
-                // 
+                //
                 //     //self.tick();
                 //     self.clocks_accum = self.clocks_accum.saturating_sub(1);
                 // }
@@ -560,19 +558,19 @@ impl VideoCard for TGACard {
         self.reset_private();
     }
 
-    fn get_pixel(&self, _x: u32, _y: u32) -> &[u8] {
+    fn pixel(&self, _x: u32, _y: u32) -> &[u8] {
         &DUMMY_PIXEL
     }
 
-    fn get_pixel_raw(&self, _x: u32, _y: u32) -> u8 {
+    fn pixel_raw(&self, _x: u32, _y: u32) -> u8 {
         0
     }
 
-    fn get_plane_slice(&self, _plane: usize) -> &[u8] {
+    fn plane_slice(&self, _plane: usize) -> &[u8] {
         &DUMMY_PLANE
     }
 
-    fn get_frame_count(&self) -> u64 {
+    fn frame_count(&self) -> u64 {
         self.frame_count
     }
 
@@ -591,32 +589,32 @@ impl VideoCard for TGACard {
     fn get_text_mode_strings(&self) -> Vec<String> {
         /*        let mut strings = Vec::new();
 
-                let start_addr = self.crtc_start_address;
-                let columns = self.crtc_horizontal_displayed as usize;
-                let rows = self.crtc_vertical_displayed as usize;
+        let start_addr = self.crtc_start_address;
+        let columns = self.crtc_horizontal_displayed as usize;
+        let rows = self.crtc_vertical_displayed as usize;
 
-                let mut row_addr = start_addr;
+        let mut row_addr = start_addr;
 
-                for _ in 0..rows {
-                    let mut line = String::new();
-                    line.extend(
-                        self.mem[row_addr..(row_addr + (columns * 2) & 0x3fff)]
-                            .iter()
-                            .step_by(2)
-                            .filter_map(|&byte| {
-                                let ascii_byte = match byte {
-                                    0x00..=0x1F => 0x20,
-                                    0x80..=0xFF => 0x20,
-                                    _ => byte,
-                                };
-                                Some(ascii_byte as char)
-                            }),
-                    );
-                    row_addr += columns * 2;
-                    strings.push(line);
-                }
+        for _ in 0..rows {
+            let mut line = String::new();
+            line.extend(
+                self.mem[row_addr..(row_addr + (columns * 2) & 0x3fff)]
+                    .iter()
+                    .step_by(2)
+                    .filter_map(|&byte| {
+                        let ascii_byte = match byte {
+                            0x00..=0x1F => 0x20,
+                            0x80..=0xFF => 0x20,
+                            _ => byte,
+                        };
+                        Some(ascii_byte as char)
+                    }),
+            );
+            row_addr += columns * 2;
+            strings.push(line);
+        }
 
-                strings*/
+        strings*/
         Vec::new()
     }
 

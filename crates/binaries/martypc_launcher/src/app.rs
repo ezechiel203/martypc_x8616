@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -268,7 +268,7 @@ impl MartyApp {
         // Find the maximum refresh rate of all video cards
         let mut highest_rate = 50.0;
         for card in cardlist.iter() {
-            let rate = emu.machine.bus().video(&card).unwrap().get_refresh_rate();
+            let rate = emu.machine.bus().video(&card).unwrap().refresh_rate();
             if rate > highest_rate {
                 highest_rate = rate;
             }

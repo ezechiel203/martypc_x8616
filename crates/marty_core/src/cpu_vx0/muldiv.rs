@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -337,7 +337,6 @@ impl NecVx0 {
         let mut tmpa: u16;
         let mut tmpc: u16 = al as u16; // 150 A->tmpc     | LRCY tmpc
         let mut carry;
-        
 
         //(_, carry) = rcl_u8_with_carry(tmpc as u8, 1, carry);
         carry = tmpc & 0x80 != 0; // LRCY is just checking MSB of tmpc
@@ -458,7 +457,6 @@ impl NecVx0 {
 
         //self.cycle_i(0x157); // 157: tmpa-> X        | RNI
 
-        
         tmpa << 8 | (tmpc & 0xFF)
     }
 
@@ -471,7 +469,6 @@ impl NecVx0 {
         let mut tmpa: u16;
         let mut tmpc: u16 = ax; // 158 XA->tmpc     | LRCY tmpc
         let mut carry;
-        
 
         //(_, carry) = rcl_u16_with_carry(tmpc, 1, carry); // SIGMA isn't used? Just setting carry flag(?)
         carry = tmpc & 0x8000 != 0; // LRCY is just checking msb

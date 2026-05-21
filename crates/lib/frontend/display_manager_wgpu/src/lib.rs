@@ -2,7 +2,7 @@
    MartyPC
    https://github.com/dbalsom/martypc
 
-   Copyright 2022-2025 Daniel Balsom
+   Copyright 2022-2026 Daniel Balsom
 
    Permission is hereby granted, free of charge, to any person obtaining a
    copy of this software and associated documentation files (the “Software”),
@@ -833,7 +833,7 @@ impl<'p> DisplayManager<WgpuBackend<'p>, GuiRenderContext, WindowId, Window, Act
         for vt in self.targets.iter() {
             let mut vtype = None;
             if let Some(vid) = vt.card_id {
-                vtype = machine.bus().video(&vid).and_then(|card| Some(card.get_video_type()));
+                vtype = machine.bus().video(&vid).and_then(|card| Some(card.video_type()));
             }
 
             let mut render_time = Duration::from_secs(0);

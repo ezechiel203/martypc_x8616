@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -59,9 +59,7 @@ use lazy_static::lazy_static;
 use serde_derive::Deserialize;
 use strum::IntoEnumIterator;
 
-// Clock derivation from reenigne
-// See https://www.vogons.org/viewtopic.php?t=55049
-pub const IBM_PC_SYSTEM_CLOCK: f64 = 157.5 / 11.0;
+pub const IBM_PC_SYSTEM_CLOCK: f64 = 315.0 / 22.0;
 pub const PIT_DIVISOR: u32 = 12;
 pub const GAME_PORT_DEFAULT_IO: u16 = 0x201;
 
@@ -188,10 +186,12 @@ pub struct GamePortConfig {
 #[derive(Clone, Debug, Deserialize)]
 pub struct VideoCardConfig {
     #[serde(rename = "type")]
-    pub video_type:    VideoType,
+    pub video_type: VideoType,
     #[serde(rename = "subtype")]
     pub video_subtype: Option<VideoCardSubType>,
-    pub dip_switch:    Option<u8>,
+    pub dip_switch: Option<u8>,
+    #[serde(default = "_default_true")]
+    pub monitor_emulation: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]

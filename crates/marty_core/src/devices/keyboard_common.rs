@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -38,8 +38,10 @@ use std::{
 
 use crate::{device_types::keyboard::KeyboardType, keys::MartyKey, machine::KeybufferEntry};
 
-use crate::device_traits::keyboard::MartyKeyboard;
-use crate::devices::keyboards::{model_f::ModelF, pcjr::PcJrKeyboard, tandy1000::Tandy1000Keyboard};
+use crate::{
+    device_traits::keyboard::MartyKeyboard,
+    devices::keyboards::{model_f::ModelF, pcjr::PcJrKeyboard, tandy1000::Tandy1000Keyboard},
+};
 use anyhow::{bail, Result};
 use serde_derive::Deserialize;
 use strum::IntoEnumIterator;

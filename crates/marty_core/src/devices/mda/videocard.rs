@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -33,40 +33,42 @@ use super::*;
 use crate::{device_traits::videocard::*, devices::pic::Pic};
 
 impl VideoCard for MDACard {
-    fn get_sync(&self) -> (bool, bool, bool, bool) {
-        (
-            self.crtc.vblank(),
-            self.crtc.hblank(),
-            self.crtc.den(),
-            self.crtc.border(),
-        )
-    }
-
     fn set_video_option(&mut self, opt: VideoOption) {
         match opt {
-            VideoOption::EnableSnow(_state) => {
-                log::warn!("VideoOption::EnableSnow not supported for MDA.");
-            }
             VideoOption::DebugDraw(state) => {
                 log::debug!("VideoOption::DebugDraw set to: {}", state);
                 self.debug_draw = state;
             }
+            VideoOption::EmulateSync(state) => {
+                log::debug!("VideoOption::EmulateSync set to: {}", state);
+                self.emulate_sync = state;
+                self.monitor.set_enabled(state);
+            }
+            _ => {
+                log::warn!("VideoOption::{:?} not supported for MDA", opt);
+            }
         }
     }
 
-    fn get_video_type(&self) -> VideoType {
+    fn set_monitor_emulation(&mut self, enabled: bool) {
+        self.monitor_emulation = enabled;
+        self.last_card_hsync = false;
+        self.last_card_vblank = false;
+    }
+
+    fn video_type(&self) -> VideoType {
         VideoType::MDA
     }
 
-    fn get_render_mode(&self) -> RenderMode {
+    fn render_mode(&self) -> RenderMode {
         RenderMode::Direct
     }
 
-    fn get_render_depth(&self) -> RenderBpp {
+    fn render_depth(&self) -> RenderBpp {
         RenderBpp::Four
     }
 
-    fn get_display_mode(&self) -> DisplayMode {
+    fn display_mode(&self) -> DisplayMode {
         self.display_mode
     }
 
@@ -79,7 +81,7 @@ impl VideoCard for MDACard {
         self.clock_mode = mode;
     }
 
-    fn get_display_size(&self) -> (u32, u32) {
+    fn display_size(&self) -> (u32, u32) {
         // MDA supports a single fixed 8x14 font. The size of the displayed window
         // is always HorizontalDisplayed * (VerticalDisplayed * (MaximumScanlineAddress + 1))
         // (Excepting fancy CRTC tricks that delay vsync)
@@ -88,7 +90,7 @@ impl VideoCard for MDACard {
         (width, height)
     }
 
-    fn get_display_extents(&self) -> &DisplayExtents {
+    fn display_extents(&self) -> &DisplayExtents {
         &self.extents
     }
 
@@ -96,65 +98,17 @@ impl VideoCard for MDACard {
         MDA_APERTURE_DESCS.to_vec()
     }
 
-    fn get_display_apertures(&self) -> Vec<DisplayAperture> {
+    fn display_apertures(&self) -> Vec<DisplayAperture> {
         self.extents.apertures.clone()
     }
 
-    /// Get the position of the electron beam.
-    fn get_beam_pos(&self) -> Option<(u32, u32)> {
-        Some((self.beam_x, self.beam_y))
-    }
-
-    /// Tick the MDA the specified number of video clock cycles.
-    fn debug_tick(&mut self, ticks: u32, _cpumem: Option<&[u8]>) {
-        match self.clock_mode {
-            ClockingMode::Character | ClockingMode::Dynamic => {
-                let pixel_ticks = ticks % MDA_CHAR_CLOCK as u32;
-                let char_ticks = ticks / MDA_CHAR_CLOCK as u32;
-
-                assert_eq!(ticks, pixel_ticks + (char_ticks * 9));
-
-                for _ in 0..pixel_ticks {
-                    self.tick();
-                }
-                for _ in 0..char_ticks {
-                    self.tick_hchar();
-                }
-            }
-            ClockingMode::Cycle => {
-                for _ in 0..ticks {
-                    self.tick();
-                }
-            }
-            _ => {}
-        }
-
-        log::warn!(
-            "debug_tick(): new cur_screen_cycles: {} beam_x: {} beam_y: {}",
-            self.cur_screen_cycles,
-            self.beam_x,
-            self.beam_y
-        );
-    }
-
     #[inline]
-    fn get_overscan_color(&self) -> u8 {
+    fn overscan_color(&self) -> u8 {
         0
     }
 
-    /// Get the current scanline being rendered.
-    fn get_scanline(&self) -> u32 {
-        self.scanline
-    }
-
-    /// Return whether or not to double scanlines for this video device. For CGA, this is always
-    /// true.
-    fn get_scanline_double(&self) -> bool {
-        true
-    }
-
     /// Return the u8 slice representing the requested buffer type.
-    fn get_buf(&self, buf_select: BufferSelect) -> &[u8] {
+    fn buf(&self, buf_select: BufferSelect) -> &[u8] {
         match buf_select {
             BufferSelect::Back => &self.buf[self.back_buf][..],
             BufferSelect::Front => &self.buf[self.front_buf][..],
@@ -162,13 +116,47 @@ impl VideoCard for MDACard {
     }
 
     /// Return the u8 slice representing the front buffer of the device. (Direct rendering only)
-    fn get_display_buf(&self) -> &[u8] {
+    fn display_buf(&self) -> &[u8] {
         &self.buf[self.front_buf][..]
     }
 
+    fn clock_divisor(&self) -> u32 {
+        1
+    }
+
+    fn sync(&self) -> (bool, bool, bool, bool) {
+        (
+            self.crtc.vblank(),
+            self.crtc.hblank(),
+            self.crtc.den(),
+            self.crtc.border(),
+        )
+    }
+
+    /// Get the position of the electron beam.
+    fn beam_pos(&self) -> Option<(u32, u32)> {
+        Some((self.beam_x, self.beam_y))
+    }
+
+    /// Get the current scanline being rendered.
+    fn scanline(&self) -> u32 {
+        self.scanline
+    }
+
+    /// Return whether or not to double scanlines for this video device. For CGA, this is always
+    /// true.
+    fn is_scanline_doubled(&self) -> bool {
+        true
+    }
+
     /// Get the current display refresh rate of the device. For MDA, this is a fixed value.
-    fn get_refresh_rate(&self) -> f32 {
+    fn refresh_rate(&self) -> f32 {
         50.0
+    }
+
+    /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
+    fn start_address(&self) -> u16 {
+        self.crtc.start_address()
     }
 
     fn is_40_columns(&self) -> bool {
@@ -185,16 +173,11 @@ impl VideoCard for MDACard {
     }
 
     #[inline]
-    fn is_graphics_mode(&self) -> bool {
+    fn is_in_graphics_mode(&self) -> bool {
         self.mode_graphics
     }
 
-    /// Return the 16-bit value computed from the CRTC's pair of Page Address registers.
-    fn get_start_address(&self) -> u16 {
-        self.crtc.start_address()
-    }
-
-    fn get_cursor_info(&self) -> CursorInfo {
+    fn cursor_info(&self) -> CursorInfo {
         let addr = self.get_cursor_address();
 
         match self.display_mode {
@@ -220,11 +203,7 @@ impl VideoCard for MDACard {
         }
     }
 
-    fn get_clock_divisor(&self) -> u32 {
-        1
-    }
-
-    fn get_current_font(&self) -> Option<FontInfo> {
+    fn current_font(&self) -> Option<FontInfo> {
         Some(FontInfo {
             w: MDA_CHAR_CLOCK as u32,
             h: CRTC_FONT_HEIGHT as u32,
@@ -232,12 +211,75 @@ impl VideoCard for MDACard {
         })
     }
 
-    fn get_character_height(&self) -> u8 {
+    fn character_height(&self) -> u8 {
         self.crtc.reg[9] + 1
     }
 
-    fn get_palette(&self) -> Option<Vec<[u8; 4]>> {
+    fn palette(&self) -> Option<Vec<[u8; 4]>> {
         None
+    }
+
+    #[rustfmt::skip]
+    fn videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
+        let mut map = HashMap::new();
+
+        let mut general_vec = Vec::new();
+
+        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?} ({:?})", self.video_type(), self.subtype))));
+        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.display_mode()))));
+        general_vec.push(("Video Enable:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode_enable))));
+        general_vec.push(("Clock Divisor:".to_string(), VideoCardStateEntry::String(format!("{}", self.clock_divisor))));
+        general_vec.push(("Frame Count:".to_string(), VideoCardStateEntry::String(format!("{}", self.frame_count))));
+        map.insert("General".to_string(), general_vec);
+
+        let crtc_vec = self.crtc.get_reg_state();
+        map.insert("CRTC".to_string(), crtc_vec);
+
+        let monitor_vec = if self.monitor_emulation {
+            self.monitor.debug_state()
+        }
+        else {
+            vec![("Monitor emulation:".to_string(), VideoCardStateEntry::String("Disabled".to_string()))]
+        };
+        map.insert("Monitor".to_string(), monitor_vec);
+
+        let crtc_counter_vec = self.crtc.get_counter_state();
+        let mut internal_vec = Vec::new();
+
+        internal_vec.extend(crtc_counter_vec);
+
+        //internal_vec.push(("hcc_c0:".to_string(), VideoCardStateEntry::String(format!("{}", self.hcc_c0))));
+        //internal_vec.push((format!("vlc_c9:"), VideoCardStateEntry::String(format!("{}", self.vlc_c9))));
+        //internal_vec.push((format!("vcc_c4:"), VideoCardStateEntry::String(format!("{}", self.vcc_c4))));
+        internal_vec.push(("scanline:".to_string(), VideoCardStateEntry::String(format!("{}", self.scanline))));
+        //internal_vec.push((format!("vsc_c3h:"), VideoCardStateEntry::String(format!("{}", self.vsc_c3h))));
+        //internal_vec.push((format!("hsc_c3l:"), VideoCardStateEntry::String(format!("{}", self.hsc_c3l))));
+        //internal_vec.push((format!("vtac_c5:"), VideoCardStateEntry::String(format!("{}", self.vtac_c5))));
+        internal_vec.push(("vma:".to_string(), VideoCardStateEntry::String(format!("{:04X}", self.vma))));
+        //internal_vec.push((format!("vma':"), VideoCardStateEntry::String(format!("{:04X}", self.vma_t))));
+        internal_vec.push(("vmws:".to_string(), VideoCardStateEntry::String(format!("{}", self.vmws))));
+        internal_vec.push(("rba:".to_string(), VideoCardStateEntry::String(format!("{:04X}", self.rba))));
+        internal_vec.push(("de:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.den()))));
+        internal_vec.push(("crtc_hblank:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.hblank()))));
+        internal_vec.push(("crtc_vblank:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.vblank()))));
+        internal_vec.push(("beam_x:".to_string(), VideoCardStateEntry::String(format!("{}", self.beam_x))));
+        internal_vec.push(("beam_y:".to_string(), VideoCardStateEntry::String(format!("{}", self.beam_y))));
+        internal_vec.push(("border:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.border()))));
+        internal_vec.push(("s_reads:".to_string(), VideoCardStateEntry::String(format!("{}", self.status_reads))));
+        internal_vec.push(("missed_hsyncs:".to_string(), VideoCardStateEntry::String(format!("{}", self.missed_hsyncs))));
+        internal_vec.push(("vsync_cycles:".to_string(), VideoCardStateEntry::String(format!("{}", self.cycles_per_vsync))));
+        internal_vec.push(("cur_screen_cycles:".to_string(), VideoCardStateEntry::String(format!("{}", self.cur_screen_cycles))));
+        internal_vec.push(("phase:".to_string(), VideoCardStateEntry::String(format!("{}", self.cycles & 0x0F))));
+        internal_vec.push(("cursor attr:".to_string(), VideoCardStateEntry::String(format!("{:02b}", self.cursor_attr))));
+
+        if let VideoCardSubType::Hercules = self.subtype {
+            internal_vec.push(("HGC Display Page:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode.page_select()))));
+            internal_vec.push(("HGC Page Flips:".to_string(), VideoCardStateEntry::String(format!("{}", self.hgc_page_flips))));
+        }
+
+        map.insert("Internal".to_string(), internal_vec);
+
+        map
     }
 
     // /// Return the current palette number, intensity attribute bit, and alt color
@@ -282,61 +324,6 @@ impl VideoCard for MDACard {
     //     (palette, intensity)
     // }
 
-    #[rustfmt::skip]
-    fn get_videocard_string_state(&self) -> HashMap<String, Vec<(String, VideoCardStateEntry)>> {
-        let mut map = HashMap::new();
-
-        let mut general_vec = Vec::new();
-
-        general_vec.push(("Adapter Type:".to_string(), VideoCardStateEntry::String(format!("{:?} ({:?})", self.get_video_type(), self.subtype))));
-        general_vec.push(("Display Mode:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.get_display_mode()))));
-        general_vec.push(("Video Enable:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode_enable))));
-        general_vec.push(("Clock Divisor:".to_string(), VideoCardStateEntry::String(format!("{}", self.clock_divisor))));
-        general_vec.push(("Frame Count:".to_string(), VideoCardStateEntry::String(format!("{}", self.frame_count))));
-        map.insert("General".to_string(), general_vec);
-
-        let crtc_vec = self.crtc.get_reg_state();
-        map.insert("CRTC".to_string(), crtc_vec);
-
-        let crtc_counter_vec = self.crtc.get_counter_state();
-        let mut internal_vec = Vec::new();
-
-        internal_vec.extend(crtc_counter_vec);
-        
-        //internal_vec.push(("hcc_c0:".to_string(), VideoCardStateEntry::String(format!("{}", self.hcc_c0))));
-        //internal_vec.push((format!("vlc_c9:"), VideoCardStateEntry::String(format!("{}", self.vlc_c9))));
-        //internal_vec.push((format!("vcc_c4:"), VideoCardStateEntry::String(format!("{}", self.vcc_c4))));
-        internal_vec.push(("scanline:".to_string(), VideoCardStateEntry::String(format!("{}", self.scanline))));
-        //internal_vec.push((format!("vsc_c3h:"), VideoCardStateEntry::String(format!("{}", self.vsc_c3h))));
-        //internal_vec.push((format!("hsc_c3l:"), VideoCardStateEntry::String(format!("{}", self.hsc_c3l))));
-        //internal_vec.push((format!("vtac_c5:"), VideoCardStateEntry::String(format!("{}", self.vtac_c5))));
-        internal_vec.push(("vma:".to_string(), VideoCardStateEntry::String(format!("{:04X}", self.vma))));
-        //internal_vec.push((format!("vma':"), VideoCardStateEntry::String(format!("{:04X}", self.vma_t))));
-        internal_vec.push(("vmws:".to_string(), VideoCardStateEntry::String(format!("{}", self.vmws))));
-        internal_vec.push(("rba:".to_string(), VideoCardStateEntry::String(format!("{:04X}", self.rba))));
-        internal_vec.push(("de:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.den()))));
-        internal_vec.push(("crtc_hblank:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.hblank()))));
-        internal_vec.push(("crtc_vblank:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.vblank()))));
-        internal_vec.push(("beam_x:".to_string(), VideoCardStateEntry::String(format!("{}", self.beam_x))));
-        internal_vec.push(("beam_y:".to_string(), VideoCardStateEntry::String(format!("{}", self.beam_y))));
-        internal_vec.push(("border:".to_string(), VideoCardStateEntry::String(format!("{}", self.crtc.border()))));
-        internal_vec.push(("s_reads:".to_string(), VideoCardStateEntry::String(format!("{}", self.status_reads))));
-        internal_vec.push(("missed_hsyncs:".to_string(), VideoCardStateEntry::String(format!("{}", self.missed_hsyncs))));
-        internal_vec.push(("vsync_cycles:".to_string(), VideoCardStateEntry::String(format!("{}", self.cycles_per_vsync))));
-        internal_vec.push(("cur_screen_cycles:".to_string(), VideoCardStateEntry::String(format!("{}", self.cur_screen_cycles))));
-        internal_vec.push(("phase:".to_string(), VideoCardStateEntry::String(format!("{}", self.cycles & 0x0F))));
-        internal_vec.push(("cursor attr:".to_string(), VideoCardStateEntry::String(format!("{:02b}", self.cursor_attr))));
-        
-        if let VideoCardSubType::Hercules = self.subtype {
-            internal_vec.push(("HGC Display Page:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode.page_select()))));
-            internal_vec.push(("HGC Page Flips:".to_string(), VideoCardStateEntry::String(format!("{}", self.hgc_page_flips))));
-        }
-        
-        map.insert("Internal".to_string(), internal_vec);
-
-        map
-    }
-
     fn run(&mut self, time: DeviceRunTimeUnit, _pic: &mut Option<Box<Pic>>, _cpumem: Option<&[u8]>) {
         /*
         if self.scanline > 1000 {
@@ -346,7 +333,8 @@ impl VideoCard for MDACard {
 
         let ticks = if let DeviceRunTimeUnit::Microseconds(us) = time {
             us * MDA_CLOCK
-        } else {
+        }
+        else {
             panic!("MDA requires Microseconds time unit.");
         };
 
@@ -453,24 +441,56 @@ impl VideoCard for MDACard {
         // self.slot_idx = 0;
     }
 
+    /// Tick the MDA the specified number of video clock cycles.
+    fn debug_tick(&mut self, ticks: u32, _cpumem: Option<&[u8]>) {
+        match self.clock_mode {
+            ClockingMode::Character | ClockingMode::Dynamic => {
+                let pixel_ticks = ticks % MDA_CHAR_CLOCK as u32;
+                let char_ticks = ticks / MDA_CHAR_CLOCK as u32;
+
+                assert_eq!(ticks, pixel_ticks + (char_ticks * 9));
+
+                for _ in 0..pixel_ticks {
+                    self.tick();
+                }
+                for _ in 0..char_ticks {
+                    self.tick_hchar();
+                }
+            }
+            ClockingMode::Cycle => {
+                for _ in 0..ticks {
+                    self.tick();
+                }
+            }
+            _ => {}
+        }
+
+        log::warn!(
+            "debug_tick(): new cur_screen_cycles: {} beam_x: {} beam_y: {}",
+            self.cur_screen_cycles,
+            self.beam_x,
+            self.beam_y
+        );
+    }
+
     fn reset(&mut self) {
         log::debug!("Resetting");
         self.reset_private();
     }
 
-    fn get_pixel(&self, _x: u32, _y: u32) -> &[u8] {
-        &DUMMY_PIXEL
-    }
-
-    fn get_pixel_raw(&self, _x: u32, _y: u32) -> u8 {
+    fn pixel_raw(&self, _x: u32, _y: u32) -> u8 {
         0
     }
 
-    fn get_plane_slice(&self, _plane: usize) -> &[u8] {
+    fn pixel(&self, _x: u32, _y: u32) -> &[u8] {
+        &DUMMY_PIXEL
+    }
+
+    fn plane_slice(&self, _plane: usize) -> &[u8] {
         &DUMMY_PLANE
     }
 
-    fn get_frame_count(&self) -> u64 {
+    fn frame_count(&self) -> u64 {
         self.frame_count
     }
 

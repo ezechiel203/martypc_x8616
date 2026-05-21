@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -2232,15 +2232,8 @@ impl FloppyController {
         match write_result {
             Ok(write_result) => {
                 if write_result.not_found {
-                    log::warn!(
-                        "operation_write_data_pio(): drive reported sector ID not found"
-                    );
-                    self.send_results_phase(
-                        InterruptCode::AbnormalTermination,
-                        self.drive_select,
-                        chs,
-                        sector_size,
-                    );
+                    log::warn!("operation_write_data_pio(): drive reported sector ID not found");
+                    self.send_results_phase(InterruptCode::AbnormalTermination, self.drive_select, chs, sector_size);
                     self.operation = Operation::NoOperation;
                     self.send_interrupt = true;
                     return;
@@ -2278,12 +2271,7 @@ impl FloppyController {
             }
             Err(e) => {
                 log::warn!("operation_write_data_pio: drive write failed: {:?}", e);
-                self.send_results_phase(
-                    InterruptCode::AbnormalTermination,
-                    self.drive_select,
-                    chs,
-                    sector_size,
-                );
+                self.send_results_phase(InterruptCode::AbnormalTermination, self.drive_select, chs, sector_size);
                 self.operation = Operation::NoOperation;
                 self.send_interrupt = true;
             }
@@ -2700,12 +2688,10 @@ impl FloppyController {
                 true => self.operation_read_data(dma, bus, h, chs, sector_size, track_len),
                 false => self.operation_read_data_pio(bus, h, chs, sector_size, track_len),
             },
-            Operation::WriteData(h, chs, sector_size, track_len, _gap3_len, _data_len, deleted) => {
-                match self.in_dma {
-                    true => self.operation_write_data(dma, bus, h, chs, sector_size, track_len, deleted),
-                    false => self.operation_write_data_pio(bus, h, chs, sector_size, track_len, deleted),
-                }
-            }
+            Operation::WriteData(h, chs, sector_size, track_len, _gap3_len, _data_len, deleted) => match self.in_dma {
+                true => self.operation_write_data(dma, bus, h, chs, sector_size, track_len, deleted),
+                false => self.operation_write_data_pio(bus, h, chs, sector_size, track_len, deleted),
+            },
             Operation::ReadTrack(h, chs, sector_size, track_len, _gap3_len, _data_len) => {
                 self.operation_read_track(dma, bus, h, chs.into(), sector_size, track_len)
             }

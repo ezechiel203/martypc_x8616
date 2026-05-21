@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -31,8 +31,7 @@
     emulated processor instruction queue.
 */
 
-#[derive(Copy, Clone)]
-#[derive(Default)]
+#[derive(Copy, Clone, Default)]
 pub enum QueueType {
     #[default]
     First,
@@ -44,7 +43,6 @@ pub enum QueueReader {
     Biu,
     Eu,
 }
-
 
 pub trait ByteQueue {
     fn seek(&mut self, pos: usize);

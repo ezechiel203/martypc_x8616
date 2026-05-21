@@ -2,7 +2,7 @@
     MartyPC
     https://github.com/dbalsom/martypc
 
-    Copyright 2022-2025 Daniel Balsom
+    Copyright 2022-2026 Daniel Balsom
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the “Software”),
@@ -36,53 +36,60 @@
 
 use std::{
     cell::Cell,
-    collections::{HashMap, BTreeMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
+    sync::{Arc, RwLock},
 };
-use std::sync::{Arc, RwLock};
-use log;
-use anyhow::{anyhow, Error};
-use fluxfox::DiskImage;
-pub use marty_common::types::rom::{MachineCheckpoint, MachinePatch, MachineRomEntry, MachineRomManifest};
 
 #[cfg(feature = "sound")]
-use crate::sound::{SoundOutputConfig, SoundOutput, SoundSourceDescriptor};
+use crate::sound::{SoundOutput, SoundOutputConfig, SoundSourceDescriptor};
 
 use crate::{
     breakpoints::BreakPointType,
     bus::{BusInterface, ClockFactor, DeviceEvent, MEM_CP_BIT},
     coreconfig::CoreConfig,
-    cpu_808x::{Intel808x},
-    cpu_common::{Cpu, CpuOption, CpuError, TraceMode},
+    cpu_808x::Intel808x,
+    cpu_common::{
+        builder::CpuBuilder,
+        format_instruction_bytes,
+        Cpu,
+        CpuAddress,
+        CpuDispatch,
+        CpuError,
+        CpuOption,
+        Disassembly,
+        ServiceEvent,
+        StepResult,
+        TraceMode,
+    },
     device_traits::videocard::{VideoCard, VideoCardId, VideoCardInterface, VideoCardState, VideoOption},
     devices::{
+        cartridge_slots::CartridgeSlot,
         dma::DMAControllerStringState,
-        fdc::controller::FloppyController,
-        hdc::xebec::HardDiskController,
-        hdc::xtide::XtIdeController,
+        fdc::{controller::FloppyController, FdcDebugState},
+        floppy_drive::FloppyImageState,
+        hdc::{xebec::HardDiskController, xtide::XtIdeController},
         keyboard_common::KeyboardModifiers,
         mouse::Mouse,
         pic::PicStringState,
-        pit::{PitDisplayState},
+        pit::PitDisplayState,
         ppi::{PpiDisplayState, PpiStringState},
-        cartridge_slots::CartridgeSlot,
         serial::SerialPortDisplayState,
     },
     keys::MartyKey,
     machine_config::{get_machine_descriptor, MachineConfiguration, MachineDescriptor},
-    machine_types::{OnHaltBehavior, MachineType},
+    machine_types::{MachineType, OnHaltBehavior},
     tracelogger::TraceLogger,
 };
-use crate::cpu_common::{CpuAddress, CpuDispatch, Disassembly, format_instruction_bytes, ServiceEvent, StepResult};
-use crate::cpu_common::builder::CpuBuilder;
-use crate::devices::fdc::FdcDebugState;
-use crate::devices::floppy_drive::FloppyImageState;
 
-use ringbuf::{Consumer};
-use crate::devices::fantasy_ems::FantasyEmsCard;
-use crate::devices::hdc::jr_ide::JrIdeController;
+use crate::devices::{fantasy_ems::FantasyEmsCard, hdc::jr_ide::JrIdeController};
+use anyhow::{anyhow, Error};
+use fluxfox::DiskImage;
+use log;
+pub use marty_common::types::rom::{MachineCheckpoint, MachinePatch, MachineRomEntry, MachineRomManifest};
+use ringbuf::Consumer;
 
 pub const STEP_OVER_TIMEOUT: u32 = 320000;
 
@@ -97,8 +104,8 @@ pub struct DisassemblyListingEntry {
 
 #[derive(Copy, Clone, Debug)]
 pub struct KeybufferEntry {
-    pub keycode: MartyKey,
-    pub pressed: bool,
+    pub keycode:   MartyKey,
+    pub pressed:   bool,
     pub modifiers: KeyboardModifiers,
     pub translate: bool,
 }
@@ -144,12 +151,18 @@ impl ExecutionState {
     /// Can we Step from the current state?
     #[inline]
     pub fn can_step(&self) -> bool {
-        matches!(self, ExecutionState::Paused | ExecutionState::BreakpointHit | ExecutionState::StepOverHit)
+        matches!(
+            self,
+            ExecutionState::Paused | ExecutionState::BreakpointHit | ExecutionState::StepOverHit
+        )
     }
     /// Can we Run from the current state?
     #[inline]
     pub fn can_run(&self) -> bool {
-        matches!(self, ExecutionState::Paused | ExecutionState::BreakpointHit | ExecutionState::StepOverHit)
+        matches!(
+            self,
+            ExecutionState::Paused | ExecutionState::BreakpointHit | ExecutionState::StepOverHit
+        )
     }
     /// Can we Pause from the current state?
     #[inline]
@@ -190,7 +203,7 @@ impl Default for ExecutionControl {
     fn default() -> Self {
         Self {
             state: ExecutionState::Paused,
-            op: Cell::new(ExecutionOperation::None),
+            op:    Cell::new(ExecutionOperation::None),
         }
     }
 }
@@ -451,14 +464,12 @@ impl Machine {
         machine_desc: MachineDescriptor,
         trace_mode: TraceMode,
         trace_logger: TraceLogger,
-        #[cfg(feature = "sound")]
-        sound_config: SoundOutputConfig,
+        #[cfg(feature = "sound")] sound_config: SoundOutputConfig,
         rom_manifest: MachineRomManifest,
         keyboard_layout: Option<String>,
         disassembly_listing_file: Option<PathBuf>,
         //rom_manager: RomManager,
     ) -> Result<Machine, Error> {
-
         // Create PIT output log file if specified
         //let pit_output_file_option = None;
         /*
@@ -494,12 +505,15 @@ impl Machine {
             std::process::exit(1);
         };
 
-        // Resolve the CPU type. 
+        // Resolve the CPU type.
         // TODO: We should probably resolve a Machine configuration against the base machine description
         //       before instantiating a Machine, and pass new() the merged struct instead of separate
         //       description / configuration structs.
-        let resolved_cpu_type
-            = machine_config.cpu.as_ref().and_then(|cpu| cpu.upgrade_type).unwrap_or(machine_desc.cpu_type);
+        let resolved_cpu_type = machine_config
+            .cpu
+            .as_ref()
+            .and_then(|cpu| cpu.upgrade_type)
+            .unwrap_or(machine_desc.cpu_type);
 
         // Build the CPU
         let mut cpu;
@@ -583,10 +597,7 @@ impl Machine {
                         log::debug!("Loaded keyboard mapping!");
                     }
                     Err(e) => {
-                        log::error!(
-                            "Failed to load keyboard mapping: Err: {}",
-                            e
-                        );
+                        log::error!("Failed to load keyboard mapping: Err: {}", e);
                         return Err(anyhow!("Failed to load keyboard mapping file: Err: {}", e));
                     }
                 }
@@ -614,7 +625,8 @@ impl Machine {
         // Set CPU clock divisor/multiplier
         let cpu_factor = if core_config.get_machine_turbo() {
             machine_desc.cpu_turbo_factor
-        } else {
+        }
+        else {
             machine_desc.cpu_factor
         };
 
@@ -735,7 +747,12 @@ impl Machine {
                     }
                     Err(e) => {
                         log::debug!("Failed to mount rom {} at location {:06X}: {}", rom.md5, rom.addr, e);
-                        return Err(anyhow!("Failed to mount rom {} at location {:06X}: {}", rom.md5, rom.addr, e));
+                        return Err(anyhow!(
+                            "Failed to mount rom {} at location {:06X}: {}",
+                            rom.md5,
+                            rom.addr,
+                            e
+                        ));
                     }
                 }
                 // Increment address by the size of the ROM data
@@ -789,13 +806,19 @@ impl Machine {
         self.cpu_factor
     }
 
-    pub fn load_program(&mut self, program: &[u8], program_seg: u16, program_ofs: u16, vreset_seg: u16, vreset_ofs: u16) -> Result<(), bool> {
+    pub fn load_program(
+        &mut self,
+        program: &[u8],
+        program_seg: u16,
+        program_ofs: u16,
+        vreset_seg: u16,
+        vreset_ofs: u16,
+    ) -> Result<(), bool> {
         let location = Intel808x::calc_linear_address(program_seg, program_ofs);
 
         self.cpu.bus_mut().copy_from(program, location as usize, 0, false)?;
 
-        self.cpu
-            .set_reset_vector(CpuAddress::Segmented(vreset_seg, vreset_ofs));
+        self.cpu.set_reset_vector(CpuAddress::Segmented(vreset_seg, vreset_ofs));
         self.cpu.reset();
 
         //self.cpu.set_end_address(((location as usize) + program.len()) & 0xFFFFF);
@@ -907,7 +930,8 @@ impl Machine {
         self.turbo_button = state;
         if state {
             self.next_cpu_factor = Some(self.machine_desc.cpu_turbo_factor);
-        } else {
+        }
+        else {
             self.next_cpu_factor = Some(self.machine_desc.cpu_factor);
         }
         log::debug!(
@@ -933,7 +957,9 @@ impl Machine {
         self.cpu.bus_mut().jride_mut()
     }
 
-    pub fn cart_slot(&mut self) -> &mut Option<CartridgeSlot> { self.cpu.bus_mut().cart_slot_mut() }
+    pub fn cart_slot(&mut self) -> &mut Option<CartridgeSlot> {
+        self.cpu.bus_mut().cart_slot_mut()
+    }
 
     pub fn cpu_cycles(&self) -> u64 {
         self.cpu_cycles
@@ -962,14 +988,14 @@ impl Machine {
         pit.get_display_state(true)
     }
 
-    /*    
+    /*
     pub fn get_pit_buf(&self) -> Vec<u8> {
         let (a, b) = self.pit_data.buffer_consumer.as_slices();
 
         a.iter().cloned().chain(b.iter().cloned()).collect()
     }*/
 
-    /// Return the serial port's state as a Vec of SerialPortState types. We may compile this 
+    /// Return the serial port's state as a Vec of SerialPortState types. We may compile this
     /// vector from a number of sources if multiple devices contain serial ports. For now, we only
     /// support one controller.
     pub fn serial_state(&mut self) -> Vec<SerialPortDisplayState> {
@@ -980,7 +1006,6 @@ impl Machine {
         }
         serial_states
     }
-
 
     /// Adjust the relative phase of CPU and PIT; this is done by subtracting the relevant number of
     /// system ticks from the next run of the PIT.
@@ -999,7 +1024,11 @@ impl Machine {
     }
 
     pub fn ppi_display_state(&mut self) -> Option<PpiDisplayState> {
-        self.cpu.bus_mut().ppi_mut().as_mut().map(|ppi| ppi.get_display_state(true))
+        self.cpu
+            .bus_mut()
+            .ppi_mut()
+            .as_mut()
+            .map(|ppi| ppi.get_display_state(true))
     }
 
     pub fn set_nmi(&mut self, state: bool) {
@@ -1023,7 +1052,8 @@ impl Machine {
     pub fn floppy_image(&mut self, drive_idx: usize) -> (Option<Arc<RwLock<DiskImage>>>, u64) {
         if let Some(fdc) = self.cpu.bus_mut().fdc_mut().as_mut() {
             fdc.get_image(drive_idx)
-        } else {
+        }
+        else {
             (None, 0)
         }
     }
@@ -1032,7 +1062,7 @@ impl Machine {
         self.cpu
             .bus_mut()
             .primary_video_mut()
-            .map(|video_card| video_card.get_videocard_string_state())
+            .map(|video_card| video_card.videocard_string_state())
     }
 
     pub fn get_error_str(&self) -> &Option<String> {
@@ -1078,7 +1108,7 @@ impl Machine {
                 translate: false,
             });
         }
-        
+
         // Release ctrl-alt-del
         for keycode in reboot_keycodes.iter() {
             self.kb_buf.push_back(KeybufferEntry {
@@ -1095,13 +1125,19 @@ impl Machine {
     }
 
     #[cfg(feature = "serial")]
-    pub fn bridge_serial_port(&mut self, port_num: usize, host_port_name: String, host_port_id: usize) -> Result<(), Error> {
+    pub fn bridge_serial_port(
+        &mut self,
+        port_num: usize,
+        host_port_name: String,
+        host_port_id: usize,
+    ) -> Result<(), Error> {
         if let Some(spc) = self.cpu.bus_mut().serial_mut() {
             if let Err(e) = spc.bridge_port(port_num, host_port_name, host_port_id) {
                 log::error!("Failed to bridge serial port: {}", e);
                 return Err(anyhow!(format!("Failed to bridge serial port: {}", e)));
             }
-        } else {
+        }
+        else {
             log::error!("No serial port controller present!");
             return Err(anyhow!("No serial port controller present!"));
         }
@@ -1186,7 +1222,8 @@ impl Machine {
     pub fn get_checkpoint_string(&self, idx: usize) -> Option<String> {
         if idx < self.rom_manifest.checkpoints.len() {
             Some(self.rom_manifest.checkpoints[idx].desc.clone())
-        } else {
+        }
+        else {
             None
         }
     }
@@ -1311,7 +1348,7 @@ impl Machine {
             let mut cpu_cycles;
             let flat_address = self.cpu.flat_ip_disassembly();
 
-            // Match checkpoints. The first check is against a simple bit flag so that we do not 
+            // Match checkpoints. The first check is against a simple bit flag so that we do not
             // need to constantly do a hash lookup.
             if self.cpu.bus().get_flags(flat_address as usize) & MEM_CP_BIT != 0 {
                 if let Some(cp) = self.checkpoint_map.get(&flat_address) {
@@ -1326,10 +1363,7 @@ impl Machine {
                 }
 
                 if let Some(&cp) = self.patch_map.get(&flat_address) {
-                    log::debug!(
-                        "ROM PATCH CHECKPOINT: [{:05X}] Installing patch...",
-                        flat_address
-                    );
+                    log::debug!("ROM PATCH CHECKPOINT: [{:05X}] Installing patch...", flat_address);
                     let mut patch = self.rom_manifest.patches[cp].clone();
                     self.bus_mut().install_patch(&mut patch);
                     self.rom_manifest.patches[cp] = patch;
@@ -1415,7 +1449,8 @@ impl Machine {
             // disassembly listing.
             let listing_entry = if self.options.record_listing {
                 Some(&mut self.disassembly)
-            } else {
+            }
+            else {
                 None
             };
 
@@ -1436,7 +1471,6 @@ impl Machine {
                 entry.visit_count += 1;
             }
 
-
             // If we returned a step over target address, execution is paused, and step over was requested,
             // Set a special breakpoint at the target address, and then continue running normally.
             if step_over {
@@ -1455,7 +1489,8 @@ impl Machine {
                     ServiceEvent::QuitEmulator(delay) => {
                         log::debug!("Quit ServiceEvent received, delay parameter: {}", delay);
                         // Forward the quit event to the frontend.
-                        self.events.push(MachineEvent::Service(ServiceEvent::QuitEmulator(delay)));
+                        self.events
+                            .push(MachineEvent::Service(ServiceEvent::QuitEmulator(delay)));
                     }
                 }
             }
@@ -1498,13 +1533,7 @@ impl Machine {
         // We send the IO bus the elapsed time in us, and a mutable reference to the PIT channel #2 ring buffer
         // so that we can collect output from the timer.
         let (bus, analyzer) = self.cpu.bus_and_analyzer_mut();
-        let device_event = bus.run_devices(
-            us,
-            sys_ticks,
-            kb_event_opt,
-            &mut self.kb_buf,
-            analyzer,
-        );
+        let device_event = bus.run_devices(us, sys_ticks, kb_event_opt, &mut self.kb_buf, analyzer);
 
         if let Some(event) = device_event {
             match event {
@@ -1554,7 +1583,8 @@ impl Machine {
             // We have an alternate
             todo!("Unimplemented conversion for AT timer");
             //1
-        } else {
+        }
+        else {
             match self.machine_desc.cpu_factor {
                 ClockFactor::Divisor(n) => self.machine_desc.timer_divisor / (n as u32),
                 ClockFactor::Multiplier(_n) => {
@@ -1613,7 +1643,7 @@ impl Machine {
         device_events
     }
 
-    /*    
+    /*
     pub fn play_sound_buffer(&self) {
         if let Some(sound_player) = &self.sound_player {
             sound_player.play();
@@ -1684,9 +1714,7 @@ impl Machine {
         self.bus_mut().for_each_videocard(f)
     }
 
-
     pub fn dump_disassembly_listing(&mut self) {
-
         // Resolve filename option
         let filename = match &self.disassembly_listing_file {
             Some(f) => f,
@@ -1711,19 +1739,19 @@ impl Machine {
 
         /*        _ = writer.write_all("flat,cs,ip,bytes,disasm,comments".as_bytes());
 
-                for (addr, entry) in self.disassembly_listing.iter() {
-                    let disasm = &entry.disassembly;
-                    let line = format!(
-                        "{:05X},{:04X},{:04X},{:?},{},{}\n",
-                        u32::from(addr),
-                        disasm.cs,
-                        disasm.ip,
-                        disasm.bytes,
-                        disasm.i,
-                        ";"
-                    );
-                    _ = writer.write_all(line.as_bytes());
-                }*/
+        for (addr, entry) in self.disassembly_listing.iter() {
+            let disasm = &entry.disassembly;
+            let line = format!(
+                "{:05X},{:04X},{:04X},{:?},{},{}\n",
+                u32::from(addr),
+                disasm.cs,
+                disasm.ip,
+                disasm.bytes,
+                disasm.i,
+                ";"
+            );
+            _ = writer.write_all(line.as_bytes());
+        }*/
 
         for (addr, entry) in self.disassembly_listing.iter() {
             let disasm = &entry.disassembly;
