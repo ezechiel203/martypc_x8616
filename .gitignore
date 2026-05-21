@@ -18,7 +18,9 @@ Thumbs.db
 /.idea/*data.migration*
 
 # Emulator files
-/archive
+/archive/*
+!/archive/crates
+!/archive/crates/**
 /program
 /releases
 /cfg
