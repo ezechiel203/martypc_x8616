@@ -60,6 +60,11 @@ impl VideoCard for EGACard {
         }
     }
 
+    fn set_monitor_emulation(&mut self, enabled: bool) {
+        self.monitor_emulation = enabled;
+        self.last_card_vsync = false;
+    }
+
     fn video_type(&self) -> VideoType {
         VideoType::EGA
     }
@@ -243,7 +248,13 @@ impl VideoCard for EGACard {
         ));
 
         map.insert("General".to_string(), general_vec);
-        map.insert("Monitor".to_string(), self.monitor.debug_state());
+        let monitor_vec = if self.monitor_emulation {
+            self.monitor.debug_state()
+        }
+        else {
+            vec![("Monitor emulation:".to_string(), VideoCardStateEntry::String("Disabled".to_string()))]
+        };
+        map.insert("Monitor".to_string(), monitor_vec);
         map.insert("CRTC".to_string(), self.crtc.get_state());
 
         let mut external_vec = Vec::new();

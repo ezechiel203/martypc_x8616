@@ -34,18 +34,18 @@ use crate::{
 };
 
 pub struct MdaMonitor {
-    emulate_vsync: bool,
-    emulate_hsync: bool,
+    emulate_vsync:  bool,
+    emulate_hsync:  bool,
     horizontal_pll: VideoHoldPll,
-    vertical_pll: VideoHoldPll,
-    out_of_sync: bool,
+    vertical_pll:   VideoHoldPll,
+    out_of_sync:    bool,
 }
 
 impl Default for MdaMonitor {
     fn default() -> Self {
         Self {
-            emulate_vsync: true,
-            emulate_hsync: true,
+            emulate_vsync:  true,
+            emulate_hsync:  true,
             horizontal_pll: VideoHoldPll::new(
                 MDA_CLOCK * 1_000_000.0,
                 MDA_HORIZ_REFRESH, // ~15.699Khz
@@ -59,7 +59,7 @@ impl Default for MdaMonitor {
                     polarity: SyncPolarity::Positive,
                 },
             ),
-            vertical_pll: VideoHoldPll::new(
+            vertical_pll:   VideoHoldPll::new(
                 MDA_CLOCK * 1_000_000.0,
                 MDA_VERT_REFRESH,
                 VideoPllParams {
@@ -67,7 +67,7 @@ impl Default for MdaMonitor {
                     ..Default::default()
                 },
             ),
-            out_of_sync: false,
+            out_of_sync:    false,
         }
     }
 }

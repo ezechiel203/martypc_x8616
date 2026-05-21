@@ -26,7 +26,7 @@
 */
 
 //! Implements the VGA's Graphics Controller subsystem.
-//! The Graphics Controllers were originally independent LSI chips on the EGA, but they now serve as a single 
+//! The Graphics Controllers were originally independent LSI chips on the EGA, but they now serve as a single
 //! functional unit within the VGA's VLSI chip.
 
 use super::*;
@@ -134,8 +134,8 @@ pub struct GraphicsControllerStats {
     pub mode_1_writes: u32,
     pub mode_2_writes: u32,
     pub mode_3_writes: u32,
-    pub mode_0_reads: u32,
-    pub mode_1_reads: u32,
+    pub mode_0_reads:  u32,
+    pub mode_1_reads:  u32,
 }
 pub struct GraphicsController {
     graphics_register_select_byte: u8,
@@ -442,7 +442,8 @@ impl GraphicsController {
                             true => 0xFF,
                             false => 0x00,
                         }
-                    } else {
+                    }
+                    else {
                         // Set/Reset Enable bit not set, use data from rotate step
                         self.pipeline_buf[i] = data_rot
                     }
@@ -574,16 +575,19 @@ impl GraphicsController {
                         if address > 0xFFFF {
                             // Replace bit 0 with bit 16
                             offset = (address & !1) | (((address & 0x10000) >> 16) & 1);
-                        } else {
+                        }
+                        else {
                             // Replace bit 0 with bit 14
                             offset = (address & !1) | (((address & 0x04000) >> 14) & 1);
                         }
-                    } else {
+                    }
+                    else {
                         // Not sure what to do in this case if we're out of bounds of a 64k plane.
                         // So just mask it to 64k for now.
                         offset = address & 0xFFFF;
                     }
-                } else {
+                }
+                else {
                     return None;
                 }
             }
@@ -592,17 +596,20 @@ impl GraphicsController {
                     if self.graphics_micellaneous.chain_odd_even() {
                         // Replace bit 0 with the page select bit
                         offset = (address & !1) | page_select as usize;
-                    } else {
+                    }
+                    else {
                         offset = address - VGA_MEM_ADDRESS;
                     }
-                } else {
+                }
+                else {
                     return None;
                 }
             }
             MemoryMap::B8000_32K => {
                 if let CGA_MEM_ADDRESS..=CGA_MEM_END = address {
                     offset = address - CGA_MEM_ADDRESS;
-                } else {
+                }
+                else {
                     return None;
                 }
             }
@@ -656,14 +663,14 @@ impl GraphicsController {
     pub fn get_stats(&self) -> Vec<(String, VideoCardStateEntry)> {
 
         let mut gc_stats_vec = Vec::new();
-        
+
         gc_stats_vec.push(("Mode 0 Writes".into(), VideoCardStateEntry::Value32(self.stats.mode_0_writes)));
         gc_stats_vec.push(("Mode 1 Writes".into(), VideoCardStateEntry::Value32(self.stats.mode_1_writes)));
         gc_stats_vec.push(("Mode 2 Writes".into(), VideoCardStateEntry::Value32(self.stats.mode_2_writes)));
         gc_stats_vec.push(("Mode 3 Writes".into(), VideoCardStateEntry::Value32(self.stats.mode_3_writes)));
         gc_stats_vec.push(("Mode 0 Reads".into(), VideoCardStateEntry::Value32(self.stats.mode_0_reads)));
         gc_stats_vec.push(("Mode 1 Reads".into(), VideoCardStateEntry::Value32(self.stats.mode_1_reads)));
-        
+
         gc_stats_vec
     }
 }

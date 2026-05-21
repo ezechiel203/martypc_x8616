@@ -223,9 +223,9 @@ pub struct CModeControl {
 
 #[derive(Copy, Clone, Default, Debug)]
 pub struct CrtcAperture {
-    pub top: u32,
-    pub left: u32,
-    pub right: u32,
+    pub top:    u32,
+    pub left:   u32,
+    pub right:  u32,
     pub bottom: u32,
 }
 
@@ -242,11 +242,16 @@ impl CrtcAperture {
     pub fn is_compatible_with(&self, extents: (u32, u32)) -> bool {
         if self.left + self.width() > extents.0 {
             false
-        } else if self.top + self.height() > extents.1 {
+        }
+        else if self.top + self.height() > extents.1 {
             false
-        } else if self.left > extents.0 {
+        }
+        else if self.left > extents.0 {
             false
-        } else { self.top <= extents.1 }
+        }
+        else {
+            self.top <= extents.1
+        }
     }
 
     pub fn adjust(&mut self, char_clock: u32, mode: ShiftMode) {
@@ -284,7 +289,7 @@ pub struct CrtcStatus {
 pub struct VgaCrtc {
     // CRTC registers
     register_select_byte: u8,
-    register_selected: CRTCRegister,
+    register_selected:    CRTCRegister,
 
     crtc_horizontal_total: u8,                          // R(0) Horizontal Total
     crtc_horizontal_display_end: u8,                    // R(1) Horizontal Display End
@@ -355,7 +360,7 @@ impl Default for VgaCrtc {
     fn default() -> Self {
         Self {
             // CRTC registers
-            register_selected: CRTCRegister::HorizontalTotal,
+            register_selected:    CRTCRegister::HorizontalTotal,
             register_select_byte: 0,
 
             crtc_horizontal_total: DEFAULT_HORIZONTAL_TOTAL,
@@ -473,18 +478,10 @@ impl VgaCrtc {
 
     pub fn read_crtc_register_data(&mut self) -> u8 {
         match self.register_selected {
-            CRTCRegister::HorizontalTotal => {
-                self.crtc_horizontal_total
-            }
-            CRTCRegister::HorizontalDisplayEnd => {
-                self.crtc_horizontal_display_end
-            }
-            CRTCRegister::StartHorizontalBlank => {
-                self.crtc_start_horizontal_blank
-            }
-            CRTCRegister::EndHorizontalBlank => {
-                self.crtc_end_horizontal_blank.into_bytes()[0]
-            }
+            CRTCRegister::HorizontalTotal => self.crtc_horizontal_total,
+            CRTCRegister::HorizontalDisplayEnd => self.crtc_horizontal_display_end,
+            CRTCRegister::StartHorizontalBlank => self.crtc_start_horizontal_blank,
+            CRTCRegister::EndHorizontalBlank => self.crtc_end_horizontal_blank.into_bytes()[0],
             CRTCRegister::StartHorizontalRetrace => {
                 // (R4)
                 self.crtc_start_horizontal_retrace
@@ -677,7 +674,7 @@ impl VgaCrtc {
                 // Write 9th bit of start vertical blank.
                 self.crtc_start_vertical_blank &= !0x0200;
                 self.crtc_start_vertical_blank |= (self.crtc_maximum_scanline.vbs() as u16) << 9;
-                // Write 9th bit of line compare 
+                // Write 9th bit of line compare
                 self.crtc_line_compare &= !0x0200;
                 self.crtc_line_compare |= (self.crtc_maximum_scanline.line_compare_bit_9() as u16) << 9;
                 self.normalize_end_vertical_blank();
@@ -840,13 +837,8 @@ impl VgaCrtc {
         let evb = self.crtc_end_vertical_blank.end_vertical_blank() as u16;
         let period = self.vertical_period();
 
-        self.crtc_end_vertical_blank_norm = Self::normalize_masked_end(
-            self.crtc_start_vertical_blank,
-            evb,
-            VGA_VBLANK_MASK,
-            period,
-            0,
-        );
+        self.crtc_end_vertical_blank_norm =
+            Self::normalize_masked_end(self.crtc_start_vertical_blank, evb, VGA_VBLANK_MASK, period, 0);
     }
 
     /// Calculate the normalized End Horizontal Retrace value
@@ -877,13 +869,8 @@ impl VgaCrtc {
         let evr = self.crtc_vertical_retrace_end.vertical_retrace_end() as u16;
         let period = self.vertical_period();
 
-        self.crtc_vertical_retrace_end_norm = Self::normalize_masked_end(
-            self.crtc_vertical_retrace_start,
-            evr,
-            VGA_VSYNC_MASK,
-            period,
-            0,
-        );
+        self.crtc_vertical_retrace_end_norm =
+            Self::normalize_masked_end(self.crtc_vertical_retrace_start, evr, VGA_VSYNC_MASK, period, 0);
     }
 
     #[inline(always)]
@@ -912,7 +899,8 @@ impl VgaCrtc {
             let candidate = (start + offset) % period;
             let compare_value = if compare_adjust < 0 {
                 candidate.wrapping_sub(compare_adjust.unsigned_abs())
-            } else {
+            }
+            else {
                 candidate.wrapping_add(compare_adjust as u16)
             };
 
@@ -1031,7 +1019,8 @@ impl VgaCrtc {
                 self.in_hrd = false;
                 self.hrdc = 0;
                 self.hsc = 0;
-            } else {
+            }
+            else {
                 self.hrdc = self.hrdc.wrapping_add(1);
             }
         }
@@ -1086,7 +1075,6 @@ impl VgaCrtc {
             //log::debug!(">>>>>> Setting aperture left to {}", raster.0);
             self.status.dynamic_aperture.left = raster.0;
 
-
             self.status.cref = true;
 
             if self.in_last_vblank_line {
@@ -1103,10 +1091,12 @@ impl VgaCrtc {
             self.vlc += if self.crtc_maximum_scanline.two_t4() {
                 if (self.slc & 0x01) != 0 {
                     0
-                } else {
+                }
+                else {
                     1
                 }
-            } else {
+            }
+            else {
                 1
             };
 
@@ -1228,7 +1218,8 @@ impl VgaCrtc {
                 self.status.den_skew = false;
                 self.status.hborder = true;
                 self.dsc = 0;
-            } else {
+            }
+            else {
                 self.status.den_skew = true;
                 self.dsc = self.dsc.wrapping_add(1);
             }
@@ -1245,12 +1236,13 @@ impl VgaCrtc {
         if self.crtc_underline_location.double_word_mode() != 0 {
             // Doubleword mode selected. Typically used in mode13h.
 
-            // The documentation surrounding this bit is poor. Many references state that the address 
+            // The documentation surrounding this bit is poor. Many references state that the address
             // is shifted by two, but this is an incomplete description. The low order bits are replaced
             // by MA12 and MA13 as well. This is only mentioned in the official IBM documentation.
             let ma12_13 = (self.vma & (0x3 << 12)) >> 12;
             output_addr = (output_addr << 2) | ma12_13;
-        } else if let WordOrByteMode::Word = self.crtc_mode_control.word_or_byte_mode() {
+        }
+        else if let WordOrByteMode::Word = self.crtc_mode_control.word_or_byte_mode() {
             // Word mode selected
             let bit = match self.crtc_mode_control.address_wrap() {
                 0 => (self.vma & (1 << 13)) >> 13,
@@ -1302,7 +1294,9 @@ impl VgaCrtc {
             }
         }
 
-        if self.status.vsync && (self.slc & VGA_VSYNC_MASK) == self.crtc_vertical_retrace_end.vertical_retrace_end() as u16 {
+        if self.status.vsync
+            && (self.slc & VGA_VSYNC_MASK) == self.crtc_vertical_retrace_end.vertical_retrace_end() as u16
+        {
             // We are leaving vsync period, generate a frame
             self.status.begin_vsync = true;
             self.status.vsync = false;
@@ -1399,12 +1393,12 @@ impl VgaCrtc {
         push_reg_str!(crtc_vec, CRTCRegister::VerticalDisplayEnd, "[R12]", self.crtc_vertical_display_end);
         push_reg_str!(crtc_vec, CRTCRegister::Offset, "[R13]", self.crtc_offset);
         push_reg_str!(
-            crtc_vec, 
-            CRTCRegister::UnderlineLocation, 
-            "[R14:dw:cb4:ul]", 
-            format!("{}:{}:{}", 
-                self.crtc_underline_location.double_word_mode(), 
-                self.crtc_underline_location.count_by_four(), 
+            crtc_vec,
+            CRTCRegister::UnderlineLocation,
+            "[R14:dw:cb4:ul]",
+            format!("{}:{}:{}",
+                self.crtc_underline_location.double_word_mode(),
+                self.crtc_underline_location.count_by_four(),
                 self.crtc_underline_location.underline_location()));
         push_reg_str!(crtc_vec, CRTCRegister::StartVerticalBlank, "[R15]", self.crtc_start_vertical_blank);
         push_reg_str!(crtc_vec, CRTCRegister::EndVerticalBlank, "[R16]", self.crtc_end_vertical_blank.into_bytes()[0]);

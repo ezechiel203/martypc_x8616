@@ -633,9 +633,11 @@ pub struct EGACard {
     hsync_ct: u64,
     vsync_ct: u64,
 
+    monitor_emulation: bool,
     monitor: EgaMonitor,
     in_card_hsync: bool,
     in_card_vsync: bool,
+    last_card_vsync: bool,
 
     intr: bool,
     last_intr: bool,
@@ -779,9 +781,11 @@ impl Default for EGACard {
             hsync_ct: 0,
             vsync_ct: 0,
 
+            monitor_emulation: true,
             monitor: EgaMonitor::new_with_clock(EgaMonitorMode::default(), EGA_CLOCK0 * 1_000_000.0),
             in_card_hsync: false,
             in_card_vsync: false,
+            last_card_vsync: false,
 
             intr: false,
             last_intr: false,
@@ -937,6 +941,18 @@ impl EGACard {
 
         self.in_card_hsync = Self::sync_line(self.crtc.status.hsync, hsync_polarity);
         self.in_card_vsync = Self::sync_line(self.crtc.status.vsync, vsync_polarity);
+
+        if !self.monitor_emulation {
+            if self.crtc.status.begin_hsync {
+                self.do_hsync();
+            }
+            if self.crtc.status.vsync && !self.last_card_vsync {
+                self.do_vsync();
+            }
+            self.last_card_vsync = self.crtc.status.vsync;
+            self.update_display_extents(true);
+            return;
+        }
 
         let mut do_horizontal_flyback = false;
         let mut do_vertical_flyback = false;
@@ -1465,7 +1481,7 @@ impl EGACard {
             return;
         };
 
-        let hhold = self.monitor.hsync_frequency().is_some();
+        let hhold = self.monitor_emulation && self.monitor.hsync_frequency().is_some();
         let (base_field_w, field_h, double_scan) = match aperture_idx {
             0 => (EGA14_STANDARD_FIELD_W, EGA14_STANDARD_FIELD_H, true),
             1 => (EGA16_STANDARD_FIELD_W, EGA16_STANDARD_FIELD_H, false),
@@ -1524,16 +1540,18 @@ impl EGACard {
             return Some(2);
         }
 
-        if let Some(hsync_frequency) = self.monitor.hsync_frequency() {
-            if (hsync_frequency - EGA14_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
-                return Some(0);
-            }
-            // Rambo Mode: 16MHz clock with 200-line / 912-dot scanline timings.
-            if (hsync_frequency - EGA_RAMBO_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
-                return Some(0);
-            }
-            if (hsync_frequency - EGA16_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
-                return Some(1);
+        if self.monitor_emulation {
+            if let Some(hsync_frequency) = self.monitor.hsync_frequency() {
+                if (hsync_frequency - EGA14_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
+                    return Some(0);
+                }
+                // Rambo Mode: 16MHz clock with 200-line / 912-dot scanline timings.
+                if (hsync_frequency - EGA_RAMBO_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
+                    return Some(0);
+                }
+                if (hsync_frequency - EGA16_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
+                    return Some(1);
+                }
             }
         }
 

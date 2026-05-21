@@ -68,7 +68,7 @@ enum RwSlotType {
 // The slot index is reset on call to run().
 #[derive(Copy, Clone, Default)]
 struct RwSlot {
-    t: RwSlotType,
+    t:    RwSlotType,
     data: u8,
     addr: u32,
     tick: u32,
@@ -515,7 +515,7 @@ pub struct CGACard {
     cursor_attr: u8,
 
     crtc_register_select_byte: u8,
-    crtc_register_selected: CRTCRegister,
+    crtc_register_selected:    CRTCRegister,
 
     crtc_horizontal_total: u8,
     crtc_horizontal_displayed: u8,
@@ -611,7 +611,7 @@ pub struct CGACard {
 
     debug_color: u8,
 
-    trace_logger: TraceLogger,
+    trace_logger:  TraceLogger,
     debug_counter: u64,
 
     lightpen_pos: (u32, u32),
@@ -622,7 +622,10 @@ pub struct CGACard {
     lightpen_switch: bool,
 
     emulate_sync: bool,
+    monitor_emulation: bool,
     monitor: FifteenHertzMonitor,
+    last_card_hblank: bool,
+    last_card_vblank: bool,
     out_of_sync: bool,
 }
 
@@ -706,7 +709,7 @@ impl Default for CGACard {
             frame_us: 0.0,
 
             cursor_frames: 0,
-            scanline_us: 0.0,
+            scanline_us:   0.0,
 
             v_flyback_count: 0,
             frame_count: 0,
@@ -718,7 +721,7 @@ impl Default for CGACard {
             cursor_data: [false; CGA_CURSOR_MAX],
             cursor_attr: 0,
 
-            crtc_register_selected: CRTCRegister::HorizontalTotal,
+            crtc_register_selected:    CRTCRegister::HorizontalTotal,
             crtc_register_select_byte: 0,
 
             crtc_horizontal_total: DEFAULT_HORIZONTAL_TOTAL,
@@ -805,10 +808,10 @@ impl Default for CGACard {
 
             mem: vec![0; CGA_MEM_SIZE].into_boxed_slice().try_into().unwrap(),
 
-            back_buf: 1,
+            back_buf:  1,
             front_buf: 0,
-            extents: CgaDefault::default(),
-            aperture: CGA_DEFAULT_APERTURE,
+            extents:   CgaDefault::default(),
+            aperture:  CGA_DEFAULT_APERTURE,
 
             //buf: vec![vec![0; (CGA_XRES_MAX * CGA_YRES_MAX) as usize]; 2],
 
@@ -822,7 +825,7 @@ impl Default for CGACard {
 
             debug_color: 0,
 
-            trace_logger: TraceLogger::None,
+            trace_logger:  TraceLogger::None,
             debug_counter: 0,
 
             lightpen_pos: (0, 0),
@@ -833,6 +836,9 @@ impl Default for CGACard {
             lightpen_switch: false,
 
             emulate_sync: true,
+            monitor_emulation: true,
+            last_card_hblank: false,
+            last_card_vblank: false,
             out_of_sync: false,
             monitor: FifteenHertzMonitor::default(),
         }
@@ -844,7 +850,8 @@ impl CGACard {
         CGACard {
             clock_mode: if let ClockingMode::Default = clock_mode {
                 ClockingMode::Dynamic
-            } else {
+            }
+            else {
                 clock_mode
             },
             trace_logger,
@@ -912,7 +919,8 @@ impl CGACard {
                 for _ in 0..(ticks - phase_offset - self.char_clock) {
                     self.tick();
                 }
-            } else {
+            }
+            else {
                 // Not enough ticks for a full character, just catch up
                 for _ in 0..ticks {
                     self.tick();
@@ -944,7 +952,8 @@ impl CGACard {
             // We have advanced the CGA card out of phase with the character clock. Count
             // how many pixel clocks we need to tick by to be back in phase.
             ((!self.cycles + 1) & 0x0F) as u32
-        } else {
+        }
+        else {
             0
         }
     }
@@ -989,7 +998,8 @@ impl CGACard {
             for i in self.crtc_cursor_start_line..=self.crtc_cursor_end_line {
                 self.cursor_data[i as usize] = true;
             }
-        } else {
+        }
+        else {
             // "Split" cursor.
             for i in 0..=self.crtc_cursor_end_line {
                 // First part of cursor is 0->end_line
@@ -1328,7 +1338,8 @@ impl CGACard {
             ) = if self.mode_hires_txt {
                 self.out_of_sync = false;
                 (1, CGA_HCHAR_CLOCK as u32, 0x07, 0x0F)
-            } else {
+            }
+            else {
                 (2, CGA_LCHAR_CLOCK as u32, 0x0F, 0x1F)
             };
 
@@ -1345,7 +1356,8 @@ impl CGACard {
             log::trace!("handle_mode_register(): deferring mode change.");
             self.mode_pending = true;
             self.mode_byte = mode_byte;
-        } else {
+        }
+        else {
             // We're not changing from text to graphics or vice versa, so we do not have to
             // defer the update.
             log::trace!("handle_mode_register(): updating mode immediately");
@@ -1369,9 +1381,11 @@ impl CGACard {
 
         let mut byte = if self.in_crtc_vblank {
             0xF0 | STATUS_VERTICAL_RETRACE | STATUS_DISPLAY_ENABLE
-        } else if !self.in_display_area {
+        }
+        else if !self.in_display_area {
             0xF0 | STATUS_DISPLAY_ENABLE
-        } else {
+        }
+        else {
             if self.border {
                 log::warn!("in border but returning 0");
             }
@@ -1418,9 +1432,11 @@ impl CGACard {
     fn update_palette(&mut self) {
         if self.mode_bw && self.mode_graphics && !self.mode_hires_gfx {
             self.cc_palette = 4; // Select Red, Cyan and White palette (undocumented)
-        } else if self.cc_register & CC_PALETTE_BIT != 0 {
+        }
+        else if self.cc_register & CC_PALETTE_BIT != 0 {
             self.cc_palette = 2; // Select Magenta, Cyan, White palette
-        } else {
+        }
+        else {
             self.cc_palette = 0; // Select Red, Green, 'Yellow' palette
         }
 
@@ -1442,7 +1458,8 @@ impl CGACard {
         if self.back_buf == 0 {
             self.front_buf = 0;
             self.back_buf = 1;
-        } else {
+        }
+        else {
             self.front_buf = 1;
             self.back_buf = 0;
         }
@@ -1473,7 +1490,8 @@ impl CGACard {
             self.cur_attr = self.last_bus_value;
             self.dirty_snow = false;
             self.snow_count += 1;
-        } else {
+        }
+        else {
             // No snow
             self.cur_char = self.mem[addr];
             self.cur_attr = self.mem[addr + 1];
@@ -1487,7 +1505,8 @@ impl CGACard {
         if self.mode_blinking {
             self.cur_bg = (self.cur_attr >> 4) & 0x07;
             self.cur_blink = self.cur_attr & 0x80 != 0;
-        } else {
+        }
+        else {
             self.cur_bg = self.cur_attr >> 4;
             self.cur_blink = false;
         }
@@ -1503,7 +1522,8 @@ impl CGACard {
     pub fn get_hchar_glyph_row(&self, glyph: usize, row: usize) -> u64 {
         if self.cur_blink && !self.blink_state {
             CGA_COLORS_U64[self.cur_bg as usize]
-        } else {
+        }
+        else {
             let glyph_row_base = CGA_HIRES_GLYPH_TABLE[glyph & 0xFF][row & 0x07];
 
             // Combine glyph mask with foreground and background colors.
@@ -1519,7 +1539,8 @@ impl CGACard {
         if self.cur_blink && !self.blink_state {
             let glyph = CGA_COLORS_U64[self.cur_bg as usize];
             (glyph, glyph)
-        } else {
+        }
+        else {
             let glyph_row_base_0 = CGA_LOWRES_GLYPH_TABLE[glyph & 0xFF][0][row & 0x07];
             let glyph_row_base_1 = CGA_LOWRES_GLYPH_TABLE[glyph & 0xFF][1][row & 0x07];
 
@@ -1583,7 +1604,8 @@ impl CGACard {
 
         if idx == 0 {
             self.cc_altcolor
-        } else {
+        }
+        else {
             CGA_PALETTES[self.cc_palette][idx]
         }
     }
@@ -1619,7 +1641,8 @@ impl CGACard {
     pub fn tick_char(&mut self) {
         if self.clock_divisor == 2 {
             self.tick_lchar();
-        } else {
+        }
+        else {
             self.tick_hchar();
         }
     }
@@ -1640,28 +1663,35 @@ impl CGACard {
                 if !self.mode_graphics {
                     if self.debug_draw && (self.lightpen_tick == self.crtc_ticks_since_vsync) {
                         self.draw_solid_hchar(CGA_LIGHTPEN_DEBUG_COLOR);
-                    } else {
+                    }
+                    else {
                         self.draw_text_mode_hchar();
                     }
-                } else if self.mode_hires_gfx {
+                }
+                else if self.mode_hires_gfx {
                     self.draw_hires_gfx_mode_char();
-                } else {
+                }
+                else {
                     self.draw_solid_hchar(self.cc_overscan_color);
                 }
-            } else if self.in_crtc_hblank {
+            }
+            else if self.in_crtc_hblank {
                 // Draw hblank in debug color
                 if self.debug_draw && !self.out_of_sync {
                     self.draw_solid_hchar(CGA_HBLANK_DEBUG_COLOR);
                 }
-            } else if self.in_crtc_vblank {
+            }
+            else if self.in_crtc_vblank {
                 // Draw vblank in debug color
                 if self.debug_draw && !self.out_of_sync {
                     self.draw_solid_hchar(CGA_VBLANK_DEBUG_COLOR);
                 }
-            } else if self.border {
+            }
+            else if self.border {
                 // Draw overscan
                 self.draw_solid_hchar(self.cc_overscan_color);
-            } else {
+            }
+            else {
                 self.draw_solid_hchar(CGA_DEBUG2_COLOR);
                 //log::warn!("invalid display state...");
                 //self.dump_status();
@@ -1697,6 +1727,18 @@ impl CGACard {
 
     #[inline]
     pub fn tick_monitor(&mut self, ticks: u32) {
+        if !self.monitor_emulation {
+            if self.in_card_hblank && !self.last_card_hblank {
+                self.do_horizontal_flyback();
+            }
+            if self.in_card_vblank && !self.last_card_vblank {
+                self.do_vertical_flyback();
+            }
+            self.last_card_hblank = self.in_card_hblank;
+            self.last_card_vblank = self.in_card_vblank;
+            return;
+        }
+
         // Perform monitor emulation.
         let mut do_horizontal_flyback = false;
         let mut do_vertical_flyback = false;
@@ -1749,25 +1791,31 @@ impl CGACard {
 
                 if !self.mode_graphics {
                     self.draw_text_mode_lchar();
-                } else if self.mode_hires_gfx {
+                }
+                else if self.mode_hires_gfx {
                     self.draw_hires_gfx_mode_char();
-                } else {
+                }
+                else {
                     self.draw_lowres_gfx_mode_char();
                 }
-            } else if self.in_crtc_hblank {
+            }
+            else if self.in_crtc_hblank {
                 // Draw hblank in debug color
                 if self.debug_draw && !self.out_of_sync {
                     self.draw_solid_lchar(CGA_HBLANK_DEBUG_COLOR);
                 }
-            } else if self.in_crtc_vblank {
+            }
+            else if self.in_crtc_vblank {
                 // Draw vblank in debug color
                 if self.debug_draw && !self.out_of_sync {
                     self.draw_solid_lchar(CGA_VBLANK_DEBUG_COLOR);
                 }
-            } else if self.border {
+            }
+            else if self.border {
                 // Draw overscan
                 self.draw_solid_lchar(self.cc_overscan_color);
-            } else {
+            }
+            else {
                 //log::warn!("invalid display state...");
             }
         }
@@ -1851,30 +1899,37 @@ impl CGACard {
                 // Draw current pixel
                 if !self.mode_graphics {
                     self.draw_text_mode_pixel();
-                } else if self.mode_hires_gfx {
+                }
+                else if self.mode_hires_gfx {
                     self.draw_hires_gfx_mode_pixel();
-                } else {
+                }
+                else {
                     self.draw_lowres_gfx_mode_pixel();
                 }
-            } else if self.in_crtc_hblank {
+            }
+            else if self.in_crtc_hblank {
                 // Draw hblank in debug color
                 if self.debug_draw {
                     self.buf[self.back_buf][self.rba] = CGA_HBLANK_DEBUG_COLOR;
                 }
-            } else if self.in_crtc_vblank {
+            }
+            else if self.in_crtc_vblank {
                 // Draw vblank in debug color
                 if self.debug_draw {
                     self.buf[self.back_buf][self.rba] = CGA_VBLANK_DEBUG_COLOR;
                 }
-            } else if self.border {
+            }
+            else if self.border {
                 // Draw overscan
                 if self.debug_draw {
                     self.draw_overscan_pixel();
                     //self.draw_pixel(CGA_OVERSCAN_DEBUG_COLOR);
-                } else {
+                }
+                else {
                     self.draw_overscan_pixel();
                 }
-            } else {
+            }
+            else {
                 //log::warn!("tick(): invalid display state...");
                 self.draw_pixel(CGA_DEBUG2_COLOR);
             }
@@ -1961,7 +2016,8 @@ impl CGACard {
                 self.last_row = true;
                 self.last_line = self.vlc_c9 == self.crtc_maximum_scanline_address;
                 self.vtac_c5 = 0;
-            } else {
+            }
+            else {
                 self.last_line = false;
             }
         }
@@ -1989,7 +2045,8 @@ impl CGACard {
             // A wider programmed hsync width than these values shifts the displayed image to the right.
             let hsync_target = if self.clock_divisor == 1 {
                 std::cmp::min(10, self.crtc_sync_width)
-            } else {
+            }
+            else {
                 std::cmp::min(5, self.crtc_sync_width)
             };
 
@@ -2158,7 +2215,8 @@ impl CGACard {
                     self.in_display_rows = true;
                     self.in_crtc_vblank = false;
                     self.frame_count += 1;
-                } else {
+                }
+                else {
                     self.vtac_c5 += 1;
                 }
             }

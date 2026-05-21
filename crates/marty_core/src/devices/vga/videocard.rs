@@ -106,12 +106,8 @@ impl VideoCard for VGACard {
     /// Return the u8 slice representing the requested buffer type.
     fn buf(&self, buf_select: BufferSelect) -> &[u8] {
         match buf_select {
-            BufferSelect::Back => {
-                bytemuck::cast_slice(&self.buf[self.back_buf][..])
-            }
-            BufferSelect::Front => {
-                bytemuck::cast_slice(&self.buf[self.front_buf][..])
-            }
+            BufferSelect::Back => bytemuck::cast_slice(&self.buf[self.back_buf][..]),
+            BufferSelect::Front => bytemuck::cast_slice(&self.buf[self.front_buf][..]),
         }
     }
 
@@ -288,7 +284,7 @@ impl VideoCard for VGACard {
             ));
         }
         map.insert("DACPalette".to_string(), dac_pal_vec);
-        
+
         map.insert("CRTC Counters".to_string(), self.crtc.get_counter_state());
 
         let mut internal_vec = Vec::new();

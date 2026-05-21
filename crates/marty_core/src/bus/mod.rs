@@ -1322,19 +1322,21 @@ impl BusInterface {
             log::debug!("Creating video card of type: {:?}", card.video_type);
             let video_dispatch = match card.video_type {
                 VideoType::MDA => {
-                    let mda = MDACard::new(
+                    let mut mda = MDACard::new(
                         card.video_subtype.unwrap_or(VideoCardSubType::None),
                         TraceLogger::None,
                         clock_mode,
                         true,
                         video_frame_debug,
                     );
+                    mda.set_monitor_emulation(card.monitor_emulation);
                     add_io_device!(self, mda, IoDeviceType::Video(video_id));
                     add_mmio_device!(self, mda, MmioDeviceType::Video(video_id));
                     VideoCardDispatch::Mda(Box::new(mda))
                 }
                 VideoType::CGA => {
-                    let cga = CGACard::new(TraceLogger::None, clock_mode, video_frame_debug);
+                    let mut cga = CGACard::new(TraceLogger::None, clock_mode, video_frame_debug);
+                    cga.set_monitor_emulation(card.monitor_emulation);
                     add_io_device!(self, cga, IoDeviceType::Video(video_id));
                     add_mmio_device!(self, cga, MmioDeviceType::Video(video_id));
                     VideoCardDispatch::Cga(Box::new(cga))
@@ -1342,21 +1344,24 @@ impl BusInterface {
                 VideoType::TGA => {
                     // Subtype can be Tandy1000 or PCJr
                     let subtype = card.video_subtype.unwrap_or(VideoCardSubType::Tandy1000);
-                    let tga = TGACard::new(subtype, TraceLogger::None, clock_mode, video_frame_debug);
+                    let mut tga = TGACard::new(subtype, TraceLogger::None, clock_mode, video_frame_debug);
+                    tga.set_monitor_emulation(card.monitor_emulation);
                     add_io_device!(self, tga, IoDeviceType::Video(video_id));
                     add_mmio_device!(self, tga, MmioDeviceType::Video(video_id));
                     VideoCardDispatch::Tga(Box::new(tga))
                 }
                 #[cfg(feature = "ega")]
                 VideoType::EGA => {
-                    let ega = EGACard::new(TraceLogger::None, clock_mode, video_frame_debug, card.dip_switch);
+                    let mut ega = EGACard::new(TraceLogger::None, clock_mode, video_frame_debug, card.dip_switch);
+                    ega.set_monitor_emulation(card.monitor_emulation);
                     add_io_device!(self, ega, IoDeviceType::Video(video_id));
                     add_mmio_device!(self, ega, MmioDeviceType::Video(video_id));
                     VideoCardDispatch::Ega(Box::new(ega))
                 }
                 #[cfg(feature = "vga")]
                 VideoType::VGA => {
-                    let vga = VGACard::new(TraceLogger::None, clock_mode, video_frame_debug, card.dip_switch);
+                    let mut vga = VGACard::new(TraceLogger::None, clock_mode, video_frame_debug, card.dip_switch);
+                    vga.set_monitor_emulation(card.monitor_emulation);
                     add_io_device!(self, vga, IoDeviceType::Video(video_id));
                     add_mmio_device!(self, vga, MmioDeviceType::Video(video_id));
                     VideoCardDispatch::Vga(Box::new(vga))

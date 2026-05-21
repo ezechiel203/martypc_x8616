@@ -125,6 +125,8 @@ name = "ibm_cga"
     # Scanline  - Clock by scanline. Fastest but unable to emulate certain effects.
     #             (Unimplemented)
     clocking_mode = "Default"
+    # Set false to bypass external monitor timing emulation.
+    monitor_emulation = true
     
     # Request line doubling for 15Khz (200 scanline) modes during rendering. 
     # Recommended.
@@ -140,6 +142,7 @@ name = "ibm_mda"
     bus_type = "ISA"
     type = "MDA"
     clock_mode = "Default"
+    monitor_emulation = true
     
 [[overlay]]
 name = "hercules"
@@ -148,7 +151,8 @@ name = "hercules"
     bus_type = "ISA"
     type = "MDA"
     subtype = "Hercules"
-    clock_mode = "Default"    
+    clock_mode = "Default"
+    monitor_emulation = true
 
 [[overlay]]
 name = "ibm_ega"
@@ -157,6 +161,7 @@ name = "ibm_ega"
     bus_type = "ISA"
     type = "EGA"
     clock_mode = "Default"
+    monitor_emulation = true
     dip_switch = 0b1001
     
 [[overlay]]
@@ -166,6 +171,7 @@ name = "ibm_ega_on_cga"
     bus_type = "ISA"
     type = "EGA"
     clock_mode = "Default"
+    monitor_emulation = true
     # 0111 = EGA on CGA monitor.
     dip_switch = 0b0111
 
@@ -176,11 +182,13 @@ name = "ibm_cga_and_mda"
     bus_type = "ISA"
     type = "CGA"
     clock_mode = "Default"
+    monitor_emulation = true
     # Video card
     [[overlay.video]]
     bus_type = "ISA"
     type = "MDA"
     clock_mode = "Default"
+    monitor_emulation = true
     
 [[overlay]]
 name = "ibm_vga"

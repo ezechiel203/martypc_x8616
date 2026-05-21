@@ -143,7 +143,6 @@ impl CGACard {
             self.draw_solid_hchar(self.cur_fg);
         }
         else if self.mode_enable {
-            
             // Get the u64 glyph row to draw for the current fg and bg colors and character row (vlc)
             let glyph_row: u64 = self.get_hchar_glyph_row(self.cur_char as usize, self.vlc_c9 as usize);
 

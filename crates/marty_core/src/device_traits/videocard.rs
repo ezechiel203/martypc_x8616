@@ -352,6 +352,9 @@ pub trait VideoCard {
     /// Apply the specified VideoOption to the adapter.
     fn set_video_option(&mut self, opt: VideoOption);
 
+    /// Enable or disable external monitor timing emulation.
+    fn set_monitor_emulation(&mut self, _enabled: bool) {}
+
     /// Returns the type of the adapter.
     fn video_type(&self) -> VideoType;
 

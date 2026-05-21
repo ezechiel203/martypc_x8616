@@ -50,6 +50,12 @@ impl VideoCard for MDACard {
         }
     }
 
+    fn set_monitor_emulation(&mut self, enabled: bool) {
+        self.monitor_emulation = enabled;
+        self.last_card_hsync = false;
+        self.last_card_vblank = false;
+    }
+
     fn video_type(&self) -> VideoType {
         VideoType::MDA
     }
@@ -229,14 +235,19 @@ impl VideoCard for MDACard {
         let crtc_vec = self.crtc.get_reg_state();
         map.insert("CRTC".to_string(), crtc_vec);
 
-        let monitor_vec = self.monitor.debug_state();
+        let monitor_vec = if self.monitor_emulation {
+            self.monitor.debug_state()
+        }
+        else {
+            vec![("Monitor emulation:".to_string(), VideoCardStateEntry::String("Disabled".to_string()))]
+        };
         map.insert("Monitor".to_string(), monitor_vec);
 
         let crtc_counter_vec = self.crtc.get_counter_state();
         let mut internal_vec = Vec::new();
 
         internal_vec.extend(crtc_counter_vec);
-        
+
         //internal_vec.push(("hcc_c0:".to_string(), VideoCardStateEntry::String(format!("{}", self.hcc_c0))));
         //internal_vec.push((format!("vlc_c9:"), VideoCardStateEntry::String(format!("{}", self.vlc_c9))));
         //internal_vec.push((format!("vcc_c4:"), VideoCardStateEntry::String(format!("{}", self.vcc_c4))));
@@ -260,12 +271,12 @@ impl VideoCard for MDACard {
         internal_vec.push(("cur_screen_cycles:".to_string(), VideoCardStateEntry::String(format!("{}", self.cur_screen_cycles))));
         internal_vec.push(("phase:".to_string(), VideoCardStateEntry::String(format!("{}", self.cycles & 0x0F))));
         internal_vec.push(("cursor attr:".to_string(), VideoCardStateEntry::String(format!("{:02b}", self.cursor_attr))));
-        
+
         if let VideoCardSubType::Hercules = self.subtype {
             internal_vec.push(("HGC Display Page:".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode.page_select()))));
             internal_vec.push(("HGC Page Flips:".to_string(), VideoCardStateEntry::String(format!("{}", self.hgc_page_flips))));
         }
-        
+
         map.insert("Internal".to_string(), internal_vec);
 
         map
@@ -322,7 +333,8 @@ impl VideoCard for MDACard {
 
         let ticks = if let DeviceRunTimeUnit::Microseconds(us) = time {
             us * MDA_CLOCK
-        } else {
+        }
+        else {
             panic!("MDA requires Microseconds time unit.");
         };
 

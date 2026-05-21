@@ -34,18 +34,18 @@ use crate::{
 };
 
 pub struct FifteenHertzMonitor {
-    emulate_vsync: bool,
-    emulate_hsync: bool,
+    emulate_vsync:  bool,
+    emulate_hsync:  bool,
     horizontal_pll: VideoHoldPll,
-    vertical_pll: VideoHoldPll,
-    out_of_sync: bool,
+    vertical_pll:   VideoHoldPll,
+    out_of_sync:    bool,
 }
 
 impl Default for FifteenHertzMonitor {
     fn default() -> Self {
         Self {
-            emulate_vsync: true,
-            emulate_hsync: true,
+            emulate_vsync:  true,
+            emulate_hsync:  true,
             horizontal_pll: VideoHoldPll::new(
                 NTSC_CLOCK * 1_000_000.0,
                 NTSC_HORIZ_REFRESH, // ~15.699Khz
@@ -59,8 +59,8 @@ impl Default for FifteenHertzMonitor {
                     polarity: SyncPolarity::Positive,
                 },
             ),
-            vertical_pll: VideoHoldPll::new(NTSC_CLOCK * 1_000_000.0, NTSC_VERT_REFRESH, Default::default()),
-            out_of_sync: false,
+            vertical_pll:   VideoHoldPll::new(NTSC_CLOCK * 1_000_000.0, NTSC_VERT_REFRESH, Default::default()),
+            out_of_sync:    false,
         }
     }
 }

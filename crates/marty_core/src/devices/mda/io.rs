@@ -149,13 +149,11 @@ impl IoDevice for MDACard {
 
         if self.lpt.is_some() {
             log::debug!("Adding LPT ports to MDA port list");
-            mda_ports.extend(
-                [
-                    (String::from("MDA LPT Data"), self.lpt_port_base),
-                    (String::from("MDA LPT Status"), self.lpt_port_base + 1),
-                    (String::from("MDA LPT Control"), self.lpt_port_base + 2),
-                ],
-            );
+            mda_ports.extend([
+                (String::from("MDA LPT Data"), self.lpt_port_base),
+                (String::from("MDA LPT Status"), self.lpt_port_base + 1),
+                (String::from("MDA LPT Control"), self.lpt_port_base + 2),
+            ]);
         }
 
         if let VideoCardSubType::Hercules = self.subtype {

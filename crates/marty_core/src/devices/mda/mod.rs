@@ -432,7 +432,7 @@ pub struct MDACard {
     //rw_slots: [RwSlot; 4],
     slot_idx: usize,
 
-    mode_pending: bool,
+    mode_pending:  bool,
     clock_pending: bool,
 
     mode_byte: u8,
@@ -449,7 +449,7 @@ pub struct MDACard {
 
     cursor_frames: u32,
 
-    frame_count: u64,
+    frame_count:  u64,
     status_reads: u64,
 
     cursor_status: bool,
@@ -462,13 +462,16 @@ pub struct MDACard {
     crtc: Crtc6845,
 
     clock_divisor: u8, // Clock divisor is 1 in high resolution text mode, 2 in all other modes
-    clock_mode: ClockingMode,
-    char_clock: u32,
+    clock_mode:    ClockingMode,
+    char_clock:    u32,
 
     // Monitor stuff
     emulate_sync: bool,
+    monitor_emulation: bool,
     monitor: MdaMonitor,
     in_card_vsync: bool,
+    last_card_hsync: bool,
+    last_card_vblank: bool,
     beam_x: u32,
     beam_y: u32,
     scanline: u32,
@@ -480,14 +483,14 @@ pub struct MDACard {
     overscan_right: u32,
     vsync_len: u32,
 
-    cur_char: u8,    // Current character being drawn
-    cur_attr: u8,    // Current attribute byte being drawn
-    cur_fg: u8,      // Current glyph fg color
-    cur_bg: u8,      // Current glyph bg color
+    cur_char:  u8,   // Current character being drawn
+    cur_attr:  u8,   // Current attribute byte being drawn
+    cur_fg:    u8,   // Current glyph fg color
+    cur_bg:    u8,   // Current glyph bg color
     cur_blink: bool, // Current glyph blink attribute
-    cur_ul: bool,    // Current glyph underline attribute
-    char_col: u8,    // Column of character glyph being drawn
-    hcc_c0: u8,      // Horizontal character counter (x pos of character)
+    cur_ul:    bool, // Current glyph underline attribute
+    char_col:  u8,   // Column of character glyph being drawn
+    hcc_c0:    u8,   // Horizontal character counter (x pos of character)
 
     vma: usize,               // VMA register - Video memory address
     vmws: usize,              // Video memory word size
@@ -512,11 +515,11 @@ pub struct MDACard {
 
     debug_color: u8,
 
-    trace_logger: TraceLogger,
+    trace_logger:  TraceLogger,
     debug_counter: u64,
 
     lightpen_latch: bool,
-    lightpen_addr: usize,
+    lightpen_addr:  usize,
 
     hblank_fn: Box<HBlankCallback>,
 
@@ -603,9 +606,9 @@ impl Default for MDACard {
             frame_us: 0.0,
 
             cursor_frames: 0,
-            scanline_us: 0.0,
+            scanline_us:   0.0,
 
-            frame_count: 0,
+            frame_count:  0,
             status_reads: 0,
 
             cursor_status: false,
@@ -621,8 +624,11 @@ impl Default for MDACard {
             clock_mode: ClockingMode::Character,
             char_clock: DEFAULT_CHAR_CLOCK,
             emulate_sync: true,
+            monitor_emulation: true,
             monitor: MdaMonitor::default(),
             in_card_vsync: true,
+            last_card_hsync: false,
+            last_card_vblank: false,
             beam_x: 0,
             beam_y: 0,
             scanline: 0,
@@ -656,10 +662,10 @@ impl Default for MDACard {
 
             mem: vec![0; HGC_MEM_SIZE].into_boxed_slice().try_into().unwrap(),
 
-            back_buf: 1,
+            back_buf:  1,
             front_buf: 0,
-            extents: MdaDefault::default(),
-            aperture: MDA_DEFAULT_APERTURE,
+            extents:   MdaDefault::default(),
+            aperture:  MDA_DEFAULT_APERTURE,
 
             //buf: vec![vec![0; (CGA_XRES_MAX * CGA_YRES_MAX) as usize]; 2],
 
@@ -673,11 +679,11 @@ impl Default for MDACard {
 
             debug_color: 0,
 
-            trace_logger: TraceLogger::None,
+            trace_logger:  TraceLogger::None,
             debug_counter: 0,
 
             lightpen_latch: false,
-            lightpen_addr: 0,
+            lightpen_addr:  0,
 
             hblank_fn: Box::new(|| 10),
 
@@ -712,7 +718,8 @@ impl MDACard {
 
         if let ClockingMode::Default = clock_mode {
             mda.clock_mode = ClockingMode::Character;
-        } else {
+        }
+        else {
             mda.clock_mode = clock_mode;
         }
 
@@ -800,7 +807,8 @@ impl MDACard {
                 for _ in 0..(ticks - phase_offset - self.char_clock) {
                     self.tick();
                 }
-            } else {
+            }
+            else {
                 // Not enough ticks for a full character, just catch up
                 for _ in 0..ticks {
                     self.tick();
@@ -832,7 +840,8 @@ impl MDACard {
             // We have advanced the CGA card out of phase with the character clock. Count
             // how many pixel clocks we need to tick by to be back in phase.
             ((!self.cycles + 1) & 0x0F) as u32
-        } else {
+        }
+        else {
             0
         }
     }
@@ -902,7 +911,8 @@ impl MDACard {
                         self.hgc_page_offset = HGC_PAGE_SIZE;
                     }
                 }
-            } else {
+            }
+            else {
                 self.mem_mask = HGC_MEM_MASK_HALF;
             }
         }
@@ -914,7 +924,8 @@ impl MDACard {
             self.extents.field_w = HGC_XRES_MAX;
             self.extents.row_stride = HGC_XRES_MAX as usize;
             //self.clock_divisor = 2;
-        } else {
+        }
+        else {
             self.char_clock = MDA_CHAR_CLOCK as u32;
             self.row_span = MDA_XRES_MAX;
             self.extents.field_w = MDA_XRES_MAX;
@@ -948,7 +959,8 @@ impl MDACard {
             if !self.crtc.den() {
                 byte |= STATUS_HRETRACE;
             }
-        } else if self.crtc.hblank() {
+        }
+        else if self.crtc.hblank() {
             byte |= STATUS_HRETRACE
         }
 
@@ -997,7 +1009,8 @@ impl MDACard {
         if self.back_buf == 0 {
             self.front_buf = 0;
             self.back_buf = 1;
-        } else {
+        }
+        else {
             self.front_buf = 1;
             self.back_buf = 0;
         }
@@ -1027,7 +1040,8 @@ impl MDACard {
 
         if self.mode_blinking {
             self.cur_blink = self.cur_attr & 0x80 != 0;
-        } else {
+        }
+        else {
             self.cur_blink = false;
         }
         // Bits 0-2 determine underline status
@@ -1125,20 +1139,24 @@ impl MDACard {
         if self.rba < (MDA_MAX_CLOCK - self.char_clock as usize) {
             if self.crtc.den() {
                 self.draw_text_mode_hchar_slow();
-            } else if self.crtc.hblank() {
+            }
+            else if self.crtc.hblank() {
                 // Draw hblank in debug color
                 if self.debug_draw {
                     self.draw_solid_hchar(MDA_HBLANK_DEBUG_COLOR);
                 }
-            } else if self.crtc.vblank() {
+            }
+            else if self.crtc.vblank() {
                 // Draw vblank in debug color
                 if self.debug_draw {
                     self.draw_solid_hchar(MDA_VBLANK_DEBUG_COLOR);
                 }
-            } else if self.crtc.border() {
+            }
+            else if self.crtc.border() {
                 // Draw overscan
                 self.draw_solid_hchar(0);
-            } else {
+            }
+            else {
                 self.draw_solid_hchar(MDA_DEBUG_COLOR);
             }
         }
@@ -1179,20 +1197,24 @@ impl MDACard {
             if self.crtc.den() {
                 self.draw_hires_gfx_mode_char();
                 //self.draw_solid_gchar(MDA_DEBUG_COLOR);
-            } else if self.crtc.hblank() {
+            }
+            else if self.crtc.hblank() {
                 // Draw hblank in debug color
                 if self.debug_draw {
                     self.draw_solid_gchar(MDA_HBLANK_DEBUG_COLOR);
                 }
-            } else if self.crtc.vblank() {
+            }
+            else if self.crtc.vblank() {
                 // Draw vblank in debug color
                 if self.debug_draw {
                     self.draw_solid_gchar(MDA_VBLANK_DEBUG_COLOR);
                 }
-            } else if self.crtc.border() {
+            }
+            else if self.crtc.border() {
                 // Draw overscan
                 //self.draw_solid_gchar(0);
-            } else {
+            }
+            else {
                 self.draw_solid_gchar(MDA_DEBUG_COLOR);
             }
         }
@@ -1218,13 +1240,25 @@ impl MDACard {
         // Destructure status so that we can drop the borrow
         let CrtcStatus { hsync, vblank, .. } = *status;
         self.in_card_vsync = !vblank;
-        self.tick_monitor(self.char_clock, hsync);
+        self.tick_monitor(self.char_clock, hsync, vblank);
         self.fetch_char(vma);
         self.vma = vma as usize;
     }
 
     #[inline]
-    pub fn tick_monitor(&mut self, ticks: u32, hsync: bool) {
+    pub fn tick_monitor(&mut self, ticks: u32, hsync: bool, vblank: bool) {
+        if !self.monitor_emulation {
+            if hsync && !self.last_card_hsync {
+                self.do_hsync();
+            }
+            if vblank && !self.last_card_vblank {
+                self.do_vsync();
+            }
+            self.last_card_hsync = hsync;
+            self.last_card_vblank = vblank;
+            return;
+        }
+
         let mut do_horizontal_flyback = false;
         let mut do_vertical_flyback = false;
         self.monitor.run(
@@ -1292,7 +1326,8 @@ impl MDACard {
         while self.ticks_accum > self.char_clock as f64 {
             if !self.mode_graphics {
                 self.tick_hchar();
-            } else {
+            }
+            else {
                 self.tick_gchar();
             }
             self.ticks_accum -= self.char_clock as f64;
@@ -1314,20 +1349,24 @@ impl MDACard {
             if self.crtc.den() {
                 // Draw current pixel
                 self.draw_text_mode_pixel();
-            } else if self.crtc.hblank() {
+            }
+            else if self.crtc.hblank() {
                 // Draw hblank in debug color
                 if self.debug_draw {
                     self.buf[self.back_buf][self.rba] = MDA_HBLANK_DEBUG_COLOR;
                 }
-            } else if self.crtc.vblank() {
+            }
+            else if self.crtc.vblank() {
                 // Draw vblank in debug color
                 if self.debug_draw {
                     self.buf[self.back_buf][self.rba] = MDA_VBLANK_DEBUG_COLOR;
                 }
-            } else if self.crtc.border() {
+            }
+            else if self.crtc.border() {
                 // Draw overscan
                 self.draw_overscan_pixel();
-            } else {
+            }
+            else {
                 //log::warn!("tick(): invalid display state...");
                 self.draw_pixel(MDA_DEBUG_COLOR);
             }

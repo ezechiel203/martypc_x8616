@@ -77,6 +77,12 @@ impl VideoCard for CGACard {
         }
     }
 
+    fn set_monitor_emulation(&mut self, enabled: bool) {
+        self.monitor_emulation = enabled;
+        self.last_card_hblank = false;
+        self.last_card_vblank = false;
+    }
+
     fn video_type(&self) -> VideoType {
         VideoType::CGA
     }
@@ -133,7 +139,8 @@ impl VideoCard for CGACard {
             // In highres mode, the color control register controls the foreground color, not overscan
             // so overscan must be black.
             0
-        } else {
+        }
+        else {
             self.cc_altcolor
         }
     }
@@ -296,7 +303,12 @@ impl VideoCard for CGACard {
 
         map.insert("CRTC".to_string(), crtc_vec);
 
-        let mut monitor_vec = self.monitor.debug_state();
+        let mut monitor_vec = if self.monitor_emulation {
+            self.monitor.debug_state()
+        }
+        else {
+            vec![("Monitor emulation:".to_string(), VideoCardStateEntry::String("Disabled".to_string()))]
+        };
         monitor_vec.push((String::from("v_flybacks:"), VideoCardStateEntry::String(format!("{}", self.v_flyback_count))));
         monitor_vec.push((String::from("beam_x:"), VideoCardStateEntry::String(format!("{}", self.beam_x))));
         monitor_vec.push((String::from("beam_y:"), VideoCardStateEntry::String(format!("{}", self.beam_y))));
@@ -340,7 +352,7 @@ impl VideoCard for CGACard {
         external_vec.push(("Enable".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode_enable))));
         external_vec.push(("Hires Gfx".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode_hires_gfx))));
         external_vec.push(("Blinking".to_string(), VideoCardStateEntry::String(format!("{:?}", self.mode_blinking))));
-        
+
         map.insert("External".to_string(), external_vec);
 
         let mut lp_vec = Vec::new();
@@ -377,7 +389,8 @@ impl VideoCard for CGACard {
 
         let mut hdots = if let DeviceRunTimeUnit::SystemTicks(ticks) = time {
             ticks
-        } else {
+        }
+        else {
             panic!("CGA requires SystemTicks time unit.")
         };
 
@@ -476,7 +489,8 @@ impl VideoCard for CGACard {
 
                     if self.clock_divisor == 2 {
                         self.tick_lchar();
-                    } else {
+                    }
+                    else {
                         self.tick_hchar();
                     }
 
@@ -539,7 +553,8 @@ impl VideoCard for CGACard {
                 for _ in 0..lchar_ticks {
                     if self.clock_divisor == 2 {
                         self.tick_lchar();
-                    } else {
+                    }
+                    else {
                         self.tick_hchar();
                         self.tick_hchar();
                     }
