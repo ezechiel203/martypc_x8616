@@ -1512,21 +1512,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "display_backend_wgpu"
-version = "0.4.2"
-dependencies = [
- "anyhow",
- "display_backend_trait",
- "log",
- "marty_egui",
- "marty_scaler_wgpu",
- "marty_videocard_renderer",
- "thiserror 1.0.69",
- "wgpu_wrapper",
- "winit",
-]
-
-[[package]]
 name = "display_manager_eframe"
 version = "0.4.2"
 dependencies = [
@@ -1546,23 +1531,6 @@ dependencies = [
  "marty_frontend_common",
  "marty_scaler_glow",
  "marty_scaler_null",
- "marty_scaler_wgpu",
- "marty_videocard_renderer",
- "winit",
-]
-
-[[package]]
-name = "display_manager_wgpu"
-version = "0.4.2"
-dependencies = [
- "anyhow",
- "display_backend_wgpu",
- "image",
- "log",
- "marty_common",
- "marty_core",
- "marty_egui",
- "marty_frontend_common",
  "marty_scaler_wgpu",
  "marty_videocard_renderer",
  "winit",
@@ -1652,7 +1620,7 @@ dependencies = [
  "objc2-foundation",
  "parking_lot",
  "percent-encoding",
- "pollster 0.4.0",
+ "pollster",
  "profiling",
  "raw-window-handle",
  "ron",
@@ -3287,24 +3255,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "marty_egui_wgpu"
-version = "0.4.2"
-dependencies = [
- "egui",
- "egui-wgpu",
- "egui-winit",
- "egui_extras 0.30.0 (git+https://github.com/dbalsom/egui_martypc.git?branch=0.30.0_raw_winit_hook)",
- "log",
- "marty_egui",
- "marty_frontend_common",
- "serialport",
- "web-time",
- "wgpu",
- "wgpu_wrapper",
- "winit",
-]
-
-[[package]]
 name = "marty_frontend_common"
 version = "0.4.2"
 dependencies = [
@@ -3321,7 +3271,7 @@ dependencies = [
  "marty_videocard_renderer",
  "marty_web_helpers",
  "md5",
- "pollster 0.4.0",
+ "pollster",
  "regex",
  "serde",
  "serde_derive",
@@ -3462,7 +3412,7 @@ dependencies = [
  "marty_core",
  "marty_display_common",
  "marty_frontend_common",
- "pollster 0.4.0",
+ "pollster",
  "rand 0.9.0",
  "regex",
  "rgb",
@@ -4228,12 +4178,6 @@ dependencies = [
 
 [[package]]
 name = "pollster"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22686f4785f02a4fcc856d3b3bb19bf6c8160d103f7a99cc258bddd0251dc7f2"
-
-[[package]]
-name = "pollster"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f3a9f18d041e6d0e102a0a46750538147e5e8992d3b4873aaafee2520b00ce3"
@@ -4505,7 +4449,7 @@ dependencies = [
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
- "pollster 0.4.0",
+ "pollster",
  "raw-window-handle",
  "urlencoding",
  "wasm-bindgen",
@@ -5801,19 +5745,6 @@ dependencies = [
  "bitflags 2.8.0",
  "js-sys",
  "web-sys",
-]
-
-[[package]]
-name = "wgpu_wrapper"
-version = "0.4.2"
-dependencies = [
- "bytemuck",
- "pollster 0.3.0",
- "raw-window-handle",
- "thiserror 2.0.11",
- "ultraviolet",
- "wgpu",
- "winit",
 ]
 
 [[package]]
