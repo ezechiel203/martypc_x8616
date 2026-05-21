@@ -1711,7 +1711,9 @@ impl BusInterface {
         }
         else if !pit_counting && self.refresh_active {
             // Timer 1 isn't counting anymore! Disable DRAM refresh...
-            log::debug!("Channel 1 not counting. Disabling DRAM refresh...");
+
+            // This log message will get spammed if running 'EGACOLRS.COM'
+            log::trace!("Channel 1 not counting. Disabling DRAM refresh...");
             *event = Some(DeviceEvent::DramRefreshEnable(false));
             self.refresh_active = false;
         }
