@@ -263,11 +263,10 @@ impl VideoCard for EGACard {
 
         let mut attribute_pal_vec = Vec::new();
         for i in 0..16 {
-            // Attribute palette entries are interpreted differently depending on the current clock speed
-            // Low resolution modes use 4BPP palette entries, high resolution modes use 6bpp.
-            let pal_resolved = match self.misc_output_register.clock_select() {
-                ClockSelect::Clock14 => self.ac.palette_registers[i].four_to_six,
-                _ => self.ac.palette_registers[i].six,
+            // Attribute palette entries are interpreted differently depending on vertical sync polarity.
+            let pal_resolved = match self.misc_output_register.vertical_retrace_polarity() {
+                RetracePolarity::Positive => self.ac.palette_registers[i].four_to_six,
+                RetracePolarity::Negative => self.ac.palette_registers[i].six,
             };
 
             let (r, g, b) = EGACard::ega_to_rgb(pal_resolved);

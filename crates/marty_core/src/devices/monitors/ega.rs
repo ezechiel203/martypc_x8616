@@ -46,8 +46,6 @@ pub enum EgaMonitorMode {
     Mode1,
     /// EGA monitor mode 2: 21.8 kHz enhanced scan rate.
     Mode2,
-    /// EGA monitor mode 3: 15.7 kHz compatible scan rate, 64 colors enabled.
-    Mode3,
 }
 
 impl From<(SyncPolarity, SyncPolarity)> for EgaMonitorMode {
@@ -55,7 +53,7 @@ impl From<(SyncPolarity, SyncPolarity)> for EgaMonitorMode {
         match (hsync, vsync) {
             (SyncPolarity::Positive, SyncPolarity::Positive) => Self::Mode1,
             (SyncPolarity::Positive, SyncPolarity::Negative) => Self::Mode2,
-            (SyncPolarity::Negative, SyncPolarity::Positive) => Self::Mode3,
+            (SyncPolarity::Negative, SyncPolarity::Positive) => Self::Mode1,
             // Negative/Negative is not a valid EGA monitor mode; keep it in the enhanced scan-rate bucket.
             (SyncPolarity::Negative, SyncPolarity::Negative) => Self::Mode2,
         }
@@ -66,30 +64,35 @@ impl EgaMonitorMode {
     fn clock_base(self) -> f64 {
         match self {
             Self::Mode1 => NTSC_CLOCK * 1_000_000.0,
-            Self::Mode2 | Self::Mode3 => EGA_CLOCK1 * 1_000_000.0,
+            Self::Mode2 => EGA_CLOCK1 * 1_000_000.0,
         }
     }
 
     fn horizontal_refresh(self) -> f64 {
         match self {
             Self::Mode1 => NTSC_HORIZ_REFRESH,
-            Self::Mode2 | Self::Mode3 => EGA_MODE2_HORIZ_REFRESH,
+            Self::Mode2 => EGA_MODE2_HORIZ_REFRESH,
         }
     }
 
     fn vertical_refresh(self) -> f64 {
         match self {
             Self::Mode1 => NTSC_VERT_REFRESH,
-            Self::Mode2 | Self::Mode3 => EGA_MODE2_VERT_REFRESH,
+            Self::Mode2 => EGA_MODE2_VERT_REFRESH,
         }
     }
 
     fn new_horizontal_pll(self, polarity: SyncPolarity, input_clock_base: f64) -> VideoHoldPll {
+        let range = match self {
+            Self::Mode1 => 0.10,
+            Self::Mode2 => 0.21, // Approximate a multisync monitor for Rambo
+        };
+
         VideoHoldPll::new(
             input_clock_base,
             self.horizontal_refresh(),
             VideoPllParams {
-                range: 0.10,
+                range,
                 kp: 0.5,
                 ki: 1.0e-6,
                 max_error: 0.05,
@@ -205,7 +208,8 @@ impl Monitor for EgaMonitor {
         let mode = EgaMonitorMode::from((hsync, vsync));
         if self.mode != mode {
             self.set_mode(mode);
-        } else {
+        }
+        else {
             self.horizontal_pll.set_polarity(hsync);
             self.vertical_pll.set_polarity(vsync);
         }

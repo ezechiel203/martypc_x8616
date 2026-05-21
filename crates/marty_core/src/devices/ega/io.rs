@@ -111,6 +111,9 @@ impl IoDevice for EGACard {
             SEQUENCER_ADDRESS_REGISTER => self.sequencer.write_address(data),
             SEQUENCER_DATA_REGISTER => {
                 self.sequencer.write_data(data);
+                if self.sequencer.clock_change_pending {
+                    self.update_clock();
+                }
                 self.recalculate_mode();
             }
             ATTRIBUTE_REGISTER | ATTRIBUTE_REGISTER_ALT => {

@@ -121,12 +121,14 @@ const EGA_MAX_CLOCK: usize = (EGA_FIELD_MAX_W * EGA_FIELD_MAX_H) as usize;
 
 const EGA14_STANDARD_FIELD_W: u32 = 912;
 const EGA14_STANDARD_FIELD_H: u32 = 262;
+
 const EGA16_STANDARD_FIELD_W: u32 = 744;
 const EGA16_STANDARD_FIELD_H: u32 = 366;
 
 const EGA_MONITOR_VSYNC_MIN: u32 = 0;
 const EGA14_HORIZ_REFRESH: f64 = EGA_CLOCK0 / EGA14_STANDARD_FIELD_W as f64 * 1_000_000.0;
 const EGA16_HORIZ_REFRESH: f64 = EGA_CLOCK1 / EGA16_STANDARD_FIELD_W as f64 * 1_000_000.0;
+const EGA_RAMBO_HORIZ_REFRESH: f64 = EGA_CLOCK1 / EGA14_STANDARD_FIELD_W as f64 * 1_000_000.0;
 const EGA_MONITOR_HSYNC_THRESHOLD: f64 = 500.0;
 
 // Negative offset to use for CRTC, Feature Control and ISR1 when in Monochrome
@@ -385,17 +387,17 @@ const HORZ_ADJUST: u32 = 48;
 
 const EGA14_APERTURE_CROPPED_W: u32 = 640;
 const EGA14_APERTURE_CROPPED_H: u32 = 200;
-const EGA14_APERTURE_CROPPED_X: u32 = 192;
-const EGA14_APERTURE_CROPPED_Y: u32 = 38;
+const EGA14_APERTURE_CROPPED_X: u32 = 176;
+const EGA14_APERTURE_CROPPED_Y: u32 = 37;
 
 const EGA14_APERTURE_ACCURATE_W: u32 = 704;
 const EGA14_APERTURE_ACCURATE_H: u32 = 224;
-const EGA14_APERTURE_ACCURATE_X: u32 = 160;
+const EGA14_APERTURE_ACCURATE_X: u32 = 144;
 const EGA14_APERTURE_ACCURATE_Y: u32 = 26;
 
 const EGA14_APERTURE_FULL_W: u32 = 768;
 const EGA14_APERTURE_FULL_H: u32 = 245;
-const EGA14_APERTURE_FULL_X: u32 = 128;
+const EGA14_APERTURE_FULL_X: u32 = 112;
 const EGA14_APERTURE_FULL_Y: u32 = 17;
 
 const EGA16_APERTURE_CROPPED_W: u32 = 640;
@@ -889,16 +891,24 @@ impl EGACard {
             self.update_monitor_polarities();
         }
 
-        log::trace!(
-            "Write to Misc Output Register: {:02X} Address Select: {:?} Clock Select: {:?}, Odd/Even Page bit: {:?}",
-            byte,
+        log::debug!(
+            "Write to EGA Misc Output Register: {byte:02X} Address Select: {:?} Clock Select: {:?}, Odd/Even Page bit: {:?}, HSync polarity: {:?}->{:?}, VSync polarity: {:?}->{:?}",
             self.misc_output_register.io_address_select(),
             self.misc_output_register.clock_select(),
-            self.misc_output_register.oddeven_page_select()
+            self.misc_output_register.oddeven_page_select(),
+            hsync_polarity_old,
+            self.misc_output_register.horizontal_retrace_polarity(),
+            vsync_polarity_old,
+            self.misc_output_register.vertical_retrace_polarity(),
         )
     }
 
     fn update_monitor_polarities(&mut self) {
+        log::debug!(
+            "EGA monitor sync polarities changed: hsync={:?} vsync={:?}",
+            self.misc_output_register.horizontal_retrace_polarity(),
+            self.misc_output_register.vertical_retrace_polarity()
+        );
         self.monitor.set_sync_polarities(
             self.misc_output_register.horizontal_retrace_polarity().into(),
             self.misc_output_register.vertical_retrace_polarity().into(),
@@ -1109,13 +1119,11 @@ impl EGACard {
 
         // Drain the accumulator while emitting characters.
         // We have two character tick functions, for native and half clocks - the half clock function draws
-        // doubles pixels horizontally. This can occur at either the 14Mhz or 16Mhz clock rate, so we pass
-        // that clock rate to the tick function. This in turn is passed to the attribute controller for proper
-        // palette selection during serialization.
+        // doubles pixels horizontally.
         while self.ticks_accum > self.sequencer.char_clock as f64 {
             match self.sequencer.clocking_mode.dot_clock() {
-                DotClock::Native => self.tick_hchar(self.misc_output_register.clock_select()),
-                DotClock::HalfClock => self.tick_lchar(self.misc_output_register.clock_select()),
+                DotClock::Native => self.tick_hchar(),
+                DotClock::HalfClock => self.tick_lchar(),
             }
             self.ticks_accum -= self.sequencer.char_clock as f64;
 
@@ -1136,11 +1144,16 @@ impl EGACard {
         }
     }
 
-    fn tick_hchar(&mut self, clock_select: ClockSelect) {
+    fn six_bit_color(&self) -> bool {
+        self.misc_output_register.vertical_retrace_polarity() == RetracePolarity::Negative
+    }
+
+    fn tick_hchar(&mut self) {
         assert_eq!(self.cycles & 0x07, 0);
         assert_eq!(self.sequencer.char_clock, 8);
 
         self.cycles += 8;
+        let six_bit_color = self.six_bit_color();
 
         // Only draw if marty_render buffer address is in bounds.
         if self.rba < (EGA_MAX_CLOCK - 8) {
@@ -1163,7 +1176,7 @@ impl EGACard {
                                 self.cur_attr,
                                 self.crtc.status.cursor,
                             ),
-                            clock_select,
+                            six_bit_color,
                             self.crtc.status.den | self.crtc.in_skew(),
                         );
                         //self.draw_text_mode_hchar14();
@@ -1172,7 +1185,7 @@ impl EGACard {
                         let ser = self.gc.serialize(&self.sequencer, self.vma);
                         self.ac.load(
                             AttributeInput::Serial(ser),
-                            clock_select,
+                            six_bit_color,
                             self.crtc.status.den | self.crtc.in_skew(),
                         );
 
@@ -1183,7 +1196,7 @@ impl EGACard {
             /*            else if self.crtc.status.hborder {
                 self.ac.load(
                     AttributeInput::SolidColor(EgaDefaultColor6Bpp::Green as u8),
-                    clock_select,
+                    six_bit_color,
                     self.crtc.status.den | self.crtc.in_skew(),
                 );
 
@@ -1232,18 +1245,7 @@ impl EGACard {
             }
         }
 
-        // Update position to next pixel and character column.
-        self.raster_x += 8 * self.sequencer.clock_divisor;
-        self.rba += 8 * self.sequencer.clock_divisor as usize;
-
-        // If we have reached the right edge of the 'monitor', return the raster position
-        // to the left side of the screen.
-        if self.raster_x >= self.extents.field_w {
-            self.raster_x = 0;
-            self.raster_y += 1;
-            //self.in_monitor_hsync = false;
-            self.rba = self.extents.row_stride * self.raster_y as usize;
-        }
+        self.advance_raster();
 
         if self.update_char_tick() && self.crtc.int_enabled() {
             self.intr = true;
@@ -1253,11 +1255,12 @@ impl EGACard {
         }
     }
 
-    fn tick_lchar(&mut self, clock_select: ClockSelect) {
+    fn tick_lchar(&mut self) {
         //assert_eq!(self.cycles & 0x0F, 0);
         assert_eq!(self.sequencer.char_clock, 16);
 
         self.cycles += 8;
+        let six_bit_color = self.six_bit_color();
 
         // Only draw if buffer address is in bounds.
         if self.rba < (EGA_MAX_CLOCK - 16) {
@@ -1278,7 +1281,7 @@ impl EGACard {
                                 self.cur_attr,
                                 self.crtc.status.cursor,
                             ),
-                            clock_select,
+                            six_bit_color,
                             self.crtc.status.den | self.crtc.in_skew(),
                         );
                         //self.draw_text_mode_hchar14();
@@ -1287,7 +1290,7 @@ impl EGACard {
                         let ser = self.gc.serialize(&self.sequencer, self.vma);
                         self.ac.load(
                             AttributeInput::Serial(ser),
-                            clock_select,
+                            six_bit_color,
                             self.crtc.status.den | self.crtc.in_skew(),
                         );
 
@@ -1315,9 +1318,7 @@ impl EGACard {
             }
         }
 
-        // Update position to next pixel and character column.
-        self.raster_x += 8 * self.sequencer.clock_divisor;
-        self.rba += 8 * self.sequencer.clock_divisor as usize;
+        self.advance_raster();
 
         if self.update_char_tick() && self.crtc.int_enabled() {
             self.intr = true;
@@ -1333,6 +1334,17 @@ impl EGACard {
         self.tick_monitor(self.sequencer.char_clock as u32);
         self.fetch_char(self.vma as u16);
         did_vsync
+    }
+
+    fn advance_raster(&mut self) {
+        self.raster_x += self.sequencer.char_clock;
+        self.rba += self.sequencer.char_clock as usize;
+
+        if self.raster_x >= self.extents.field_w {
+            self.raster_x = 0;
+            self.raster_y += 1;
+            self.rba = self.extents.row_stride * self.raster_y as usize;
+        }
     }
 
     fn do_hsync(&mut self) {
@@ -1390,7 +1402,7 @@ impl EGACard {
             self.swap();
 
             // Toggle blink state. This is toggled every 8 frames by default.
-            if (self.frame % EGA_CURSOR_BLINK_RATE as u64) == 0 {
+            if self.frame.is_multiple_of(EGA_CURSOR_BLINK_RATE as u64) {
                 self.blink_state = !self.blink_state;
             }
         }
@@ -1437,6 +1449,7 @@ impl EGACard {
             };
 
             self.update_display_extents(true);
+            self.sequencer.clock_change_pending = false;
         }
 
         log::debug!(
@@ -1461,7 +1474,9 @@ impl EGACard {
         };
 
         let field_w = if hhold && aperture_idx != 2 {
-            self.crtc.horizontal_total_pixels(self.clock_divisor()).min(EGA_FIELD_MAX_W)
+            self.crtc
+                .horizontal_total_pixels(self.sequencer.char_clock)
+                .min(EGA_FIELD_MAX_W)
         }
         else {
             base_field_w
@@ -1469,7 +1484,10 @@ impl EGACard {
 
         let mut apertures = EGA_APERTURES[aperture_idx];
         if hhold && aperture_idx != 2 {
-            let required_cropped_width = self.crtc.horizontal_displayed_pixels(self.clock_divisor()).min(field_w);
+            let required_cropped_width = self
+                .crtc
+                .horizontal_displayed_pixels(self.sequencer.char_clock)
+                .min(field_w);
             Self::adjust_aperture_widths(&mut apertures, required_cropped_width, field_w);
         }
 
@@ -1508,6 +1526,10 @@ impl EGACard {
 
         if let Some(hsync_frequency) = self.monitor.hsync_frequency() {
             if (hsync_frequency - EGA14_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
+                return Some(0);
+            }
+            // Rambo Mode: 16MHz clock with 200-line / 912-dot scanline timings.
+            if (hsync_frequency - EGA_RAMBO_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {
                 return Some(0);
             }
             if (hsync_frequency - EGA16_HORIZ_REFRESH).abs() <= EGA_MONITOR_HSYNC_THRESHOLD {

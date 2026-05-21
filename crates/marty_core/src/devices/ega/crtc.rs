@@ -181,11 +181,11 @@ pub struct EgaCrtc {
     crtc_horizontal_display_end: u8,                    // R(1) Horizontal Display End
     crtc_start_horizontal_blank: u8,                    // R(2) Start Horizontal Blank
     crtc_end_horizontal_blank: CEndHorizontalBlank,     // R(3) Bits 0-4 - End Horizontal Blank
-    crtc_end_horizontal_blank_norm: u8,                 // End Horizontal Blank value normalized to column number
+    crtc_end_horizontal_blank_norm: u16,                // End Horizontal Blank value normalized to column number
     crtc_start_horizontal_retrace: u8,                  // R(4) Start Horizontal Retrace
     crtc_end_horizontal_retrace: CEndHorizontalRetrace, // R(5) End Horizontal Retrace
-    crtc_end_horizontal_retrace_norm: u8,               // End Horizontal Retrace value normalized to column number
-    crtc_retrace_width: u8,
+    crtc_end_horizontal_retrace_norm: u16,              // End Horizontal Retrace value normalized to column number
+    crtc_retrace_width: u16,
     crtc_vertical_total: u16,    // R(6) Vertical Total (9-bit value)
     crtc_overflow: u8,           // R(7) Overflow
     crtc_preset_row_scan: u8,    // R(8) Preset Row Scan
@@ -365,6 +365,8 @@ impl EgaCrtc {
             CRTCRegister::HorizontalTotal => {
                 // (R0) 8 bit write only
                 self.crtc_horizontal_total = byte;
+                self.normalize_end_horizontal_blank();
+                self.normalize_end_horizontal_retrace();
             }
             CRTCRegister::HorizontalDisplayEnd => {
                 // (R1) 8 bit write only
@@ -401,6 +403,7 @@ impl EgaCrtc {
                 // Bit 8 in overflow register. Set only lower 8 bits here.
                 self.crtc_vertical_total &= 0xFF00;
                 self.crtc_vertical_total |= byte as u16;
+                self.normalize_end_vertical_retrace();
             }
             CRTCRegister::Overflow => {
                 // (R7) 6 bit write only
@@ -413,6 +416,7 @@ impl EgaCrtc {
                 // Bits 6-7: Unused
                 self.crtc_overflow = byte;
                 self.set_crtc_overflow_bits(byte);
+                self.normalize_end_vertical_retrace();
             }
             CRTCRegister::PresetRowScan => {
                 // (R8)
@@ -576,17 +580,15 @@ impl EgaCrtc {
     /// into the actual column number.
     fn normalize_end_horizontal_blank(&mut self) {
         let ehb = self.crtc_end_horizontal_blank.end_horizontal_blank();
+        let period = self.horizontal_period();
 
-        let mut proposed_ehb = self.crtc_start_horizontal_blank & 0xE0 | ehb;
-        if proposed_ehb <= self.crtc_start_horizontal_blank {
-            proposed_ehb = (self.crtc_start_horizontal_blank + 0x20) & 0xE0 | ehb;
-        }
-
-        if proposed_ehb > self.crtc_horizontal_total {
-            // Wrap at HT
-            proposed_ehb = ehb
-        }
-        self.crtc_end_horizontal_blank_norm = proposed_ehb;
+        self.crtc_end_horizontal_blank_norm = Self::normalize_masked_end(
+            self.crtc_start_horizontal_blank as u16,
+            ehb as u16,
+            EGA_HBLANK_MASK as u16,
+            period,
+            0,
+        );
     }
 
     /// Calculate the normalized End Horizontal Retrace value
@@ -597,21 +599,14 @@ impl EgaCrtc {
     /// into the actual column number.
     fn normalize_end_horizontal_retrace(&mut self) {
         let ehr = self.crtc_end_horizontal_retrace.end_horizontal_retrace();
+        let period = self.horizontal_period();
+        let start = self
+            .crtc_start_horizontal_retrace
+            .wrapping_add(self.crtc_end_horizontal_retrace.horizontal_retrace_delay()) as u16;
+        let end = Self::normalize_masked_end(start, ehr as u16, EGA_HSYNC_MASK as u16, period, -1);
 
-        let mut proposed_ehr = self.crtc_start_horizontal_retrace & 0xE0 | ehr;
-        if proposed_ehr <= self.crtc_start_horizontal_retrace {
-            proposed_ehr = (self.crtc_start_horizontal_retrace + 0x20) & 0xE0 | ehr;
-        }
-
-        if proposed_ehr > self.crtc_horizontal_total {
-            // Wrap at HT
-            proposed_ehr = ehr;
-            self.crtc_retrace_width = self.crtc_horizontal_total - self.crtc_start_horizontal_retrace + ehr;
-        }
-        else {
-            self.crtc_retrace_width = proposed_ehr - self.crtc_start_horizontal_retrace;
-        }
-        self.crtc_end_horizontal_retrace_norm = proposed_ehr;
+        self.crtc_retrace_width = (end + period - (start % period)) % period;
+        self.crtc_end_horizontal_retrace_norm = end;
     }
 
     /// Calculate the normalized Vertical Retrace End value
@@ -622,17 +617,43 @@ impl EgaCrtc {
     /// into the actual scanline number.
     fn normalize_end_vertical_retrace(&mut self) {
         let evr = self.crtc_vertical_retrace_end.vertical_retrace_end() as u16;
+        let period = self.vertical_period();
 
-        let mut proposed_evr = self.crtc_vertical_retrace_start & 0xFFE0 | evr;
-        if proposed_evr <= self.crtc_vertical_retrace_start {
-            proposed_evr = (self.crtc_vertical_retrace_start + 0x20) & 0xFFE0 | evr;
+        self.crtc_vertical_retrace_end_norm =
+            Self::normalize_masked_end(self.crtc_vertical_retrace_start, evr, EGA_VSYNC_MASK, period, 0);
+    }
+
+    #[inline(always)]
+    fn horizontal_period(&self) -> u16 {
+        self.crtc_horizontal_total as u16 + 2
+    }
+
+    #[inline(always)]
+    fn vertical_period(&self) -> u16 {
+        self.crtc_vertical_total + 1
+    }
+
+    /// Normalize a CRTC masked-match value to its fully resolved value, accounting for wrap-around
+    /// via modulo. These values are only used for debug display.
+    fn normalize_masked_end(start: u16, end: u16, mask: u16, period: u16, compare_adjust: i16) -> u16 {
+        let period = period.max(1);
+        let start = start % period;
+
+        for offset in 1..=period {
+            let candidate = (start + offset) % period;
+            let compare_value = if compare_adjust < 0 {
+                candidate.wrapping_sub(compare_adjust.unsigned_abs())
+            }
+            else {
+                candidate.wrapping_add(compare_adjust as u16)
+            };
+
+            if (compare_value & mask) == end {
+                return candidate;
+            }
         }
 
-        if proposed_evr > self.crtc_vertical_total {
-            // Wrap at VT
-            proposed_evr = evr
-        }
-        self.crtc_vertical_retrace_end_norm = proposed_evr;
+        end % period
     }
 
     pub fn read_crtc_register(&mut self) -> u8 {
@@ -1089,12 +1110,12 @@ impl EgaCrtc {
         self.crtc_horizontal_display_end
     }
 
-    pub fn horizontal_displayed_pixels(&self, clock_divisor: u32) -> u32 {
-        (self.crtc_horizontal_display_end as u32 + 1) * 8 * clock_divisor
+    pub fn horizontal_displayed_pixels(&self, character_clock: u32) -> u32 {
+        (self.crtc_horizontal_display_end as u32 + 1) * character_clock
     }
 
-    pub fn horizontal_total_pixels(&self, clock_divisor: u32) -> u32 {
-        (self.crtc_horizontal_total as u32 + 2) * 8 * clock_divisor
+    pub fn horizontal_total_pixels(&self, character_clock: u32) -> u32 {
+        (self.crtc_horizontal_total as u32 + 2) * character_clock
     }
 
     pub fn vertical_display_end(&self) -> u16 {
