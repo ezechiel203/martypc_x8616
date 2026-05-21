@@ -54,9 +54,11 @@ use egui_wgpu::wgpu;
 pub struct EFrameBackend {
     #[allow(unused)]
     ctx: egui::Context,
-    adapter_info: Option<wgpu::AdapterInfo>, // Adapter information
-    device: Arc<wgpu::Device>,               // Wgpu device. Cloneable handle to the GPU device instance.
-    queue: Arc<wgpu::Queue>,                 // Wgpu queue. Cloneable handle to the GPU rendering queue instance.
+    adapter_info: wgpu::AdapterInfo, // Adapter information
+    backend_name: String,
+    adapter_name: String,
+    device: Arc<wgpu::Device>, // Wgpu device. Cloneable handle to the GPU device instance.
+    queue: Arc<wgpu::Queue>,   // Wgpu queue. Cloneable handle to the GPU rendering queue instance.
     texture_format: wgpu::TextureFormat,
 }
 
@@ -65,13 +67,19 @@ impl EFrameBackend {
         ctx: egui::Context,
         _buffer_dim: BufferDimensions,
         _surface_dim: TextureDimensions,
+        adapter_info: wgpu::AdapterInfo,
         device: Arc<wgpu::Device>,
         queue: Arc<wgpu::Queue>,
         texture_format: wgpu::TextureFormat,
     ) -> Result<EFrameBackend, Error> {
+        let backend_name = format!("{:?}", adapter_info.backend).to_lowercase();
+        let adapter_name = adapter_info.name.clone();
+
         Ok(EFrameBackend {
             ctx,
-            adapter_info: None,
+            adapter_info,
+            backend_name,
+            adapter_name,
             device,
             queue,
             texture_format,
@@ -101,7 +109,15 @@ pub type EFrameScalerType = Box<
     >,
 >;
 
-impl EFrameBackend {}
+impl EFrameBackend {
+    pub fn backend_name(&self) -> &str {
+        &self.backend_name
+    }
+
+    pub fn adapter_name(&self) -> &str {
+        &self.adapter_name
+    }
+}
 
 impl DisplayBackend<'_, '_, ()> for EFrameBackend {
     type NativeDevice = wgpu::Device;
@@ -113,7 +129,7 @@ impl DisplayBackend<'_, '_, ()> for EFrameBackend {
     type NativeScaler = EFrameScalerType;
 
     fn adapter_info(&self) -> Option<Self::NativeBackendAdapterInfo> {
-        Some(self.adapter_info.clone()?)
+        Some(self.adapter_info.clone())
     }
 
     fn device(&self) -> Arc<Self::NativeDevice> {

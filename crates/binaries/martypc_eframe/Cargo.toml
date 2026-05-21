@@ -106,6 +106,7 @@ marty_config = { path = "../../lib/frontend/marty_config", default-features = fa
 # Build dependencies
 # ---------------------------------------------------------------------------------------------------------------------
 [build-dependencies]
+built = { version = "0.8.0", features = ["git2"] }
 winres = "0.1"
 
 [features]

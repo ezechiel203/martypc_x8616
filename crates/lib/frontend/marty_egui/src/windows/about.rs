@@ -83,17 +83,26 @@ const GREETS: &[&str] = &[
 
 pub struct AboutDialog {
     //texture: Option<egui::TextureHandle>,
-    _params: bool,
-    greets:  GreetsWidget,
+    _params:  bool,
+    greets:   GreetsWidget,
+    version:  String,
+    build_id: String,
 }
 
 impl AboutDialog {
     pub fn new() -> Self {
         Self {
             //texture: None,
-            _params: Default::default(),
-            greets:  GreetsWidget::new(GREETS, FontId::monospace(20.0), 0.5),
+            _params:  Default::default(),
+            greets:   GreetsWidget::new(GREETS, FontId::monospace(20.0), 0.5),
+            version:  env!("CARGO_PKG_VERSION").to_string(),
+            build_id: "000000".to_string(),
         }
+    }
+
+    pub fn set_build_info(&mut self, version: impl Into<String>, build_id: impl Into<String>) {
+        self.version = version.into();
+        self.build_id = build_id.into();
     }
 
     pub fn draw(&mut self, ui: &mut egui::Ui, _ctx: &Context, _events: &mut GuiEventQueue) {
@@ -103,7 +112,7 @@ impl AboutDialog {
 
         ui.separator();
         ui.vertical(|ui| {
-            ui.label(format!("MartyPC Version {}", env!("CARGO_PKG_VERSION")));
+            ui.label(format!("MartyPC Version {} [{}]", self.version, self.build_id));
             ui.label("MartyPC is free software licensed under the MIT License.");
             ui.label("©2022-2025 Daniel Balsom (GloriousCow)");
 

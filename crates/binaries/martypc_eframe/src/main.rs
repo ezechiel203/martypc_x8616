@@ -28,7 +28,7 @@
 // hide console window on Windows in release, unless devmode feature is enabled
 #![cfg_attr(all(not(debug_assertions), not(feature = "devmode")), windows_subsystem = "windows")]
 
-use martypc_eframe::{app::MartyApp, MARTY_ICON};
+use martypc_eframe::{app::MartyApp, version_string, MARTY_ICON};
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -46,7 +46,7 @@ async fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([800.0, 600.0])
             .with_min_inner_size([800.0, 600.0])
-            .with_title(format!("MartyPC {}", env!("CARGO_PKG_VERSION")))
+            .with_title(format!("MartyPC {}", version_string()))
             .with_icon(
                 // NOTE: Adding an icon is optional
                 eframe::icon_data::from_png_bytes(&MARTY_ICON[..]).expect("Failed to load icon"),

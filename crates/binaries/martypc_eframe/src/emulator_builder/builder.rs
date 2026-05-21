@@ -764,6 +764,7 @@ impl EmulatorBuilder {
 
         // Create a GUI state object
         let mut gui = GuiState::new(exec_control.clone(), sender.clone(), render_callback);
+        gui.set_build_info(env!("CARGO_PKG_VERSION"), crate::build_id());
 
         // Set list of virtual serial ports
         gui.set_serial_ports(machine.bus().enumerate_serial_ports());

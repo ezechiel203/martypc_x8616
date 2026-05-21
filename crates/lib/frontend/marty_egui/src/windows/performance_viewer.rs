@@ -113,6 +113,14 @@ impl PerformanceViewerControl {
                                     ui.label("Backend: ");
                                     ui.label(egui::RichText::new(dt.backend_name.clone()));
                                     ui.end_row();
+                                    ui.label("Adapter: ");
+                                    ui.label(egui::RichText::new(if dt.adapter_name.is_empty() {
+                                        "N/A".to_string()
+                                    }
+                                    else {
+                                        dt.adapter_name.clone()
+                                    }));
+                                    ui.end_row();
                                     if let Some(geom) = dt.scaler_geometry {
                                         ui.label("Scaler source resolution: ");
                                         ui.label(format!("{}, {}", geom.texture_w, geom.texture_h));

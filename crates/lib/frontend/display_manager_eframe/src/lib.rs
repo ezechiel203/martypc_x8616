@@ -1064,23 +1064,21 @@ impl<'p> DisplayManager<EFrameBackend, GuiRenderContext, ViewportId, ViewportId,
             //     gui_render_time = gui_ctx.get_render_time();
             // }
 
-            let backend_name = String::new();
-
-            // TODO: A display target doesn't have a backend anymore,
-            //       so if we want the adapter name we'll have to either set it,
-            //       or get it from the main DisplayManager.
-
-            // #[cfg(feature = "use_wgpu")]
-            // if let Some(backend) = &vt.backend {
-            //     backend_name = backend
-            //         .get_adapter_info()
-            //         .map(|info| format!("{:?} ({})", info.backend, info.name))
-            //         .unwrap_or_default();
-            // }
+            let backend_name = self
+                .backend
+                .as_ref()
+                .map(|backend| backend.backend_name().to_string())
+                .unwrap_or_default();
+            let adapter_name = self
+                .backend
+                .as_ref()
+                .map(|backend| backend.adapter_name().to_string())
+                .unwrap_or_default();
 
             info_vec.push(DisplayTargetInfo {
                 handle: DtHandle(i),
                 backend_name,
+                adapter_name,
                 dtype: vtc.dt_type,
                 flags: vtc.dt_flags,
                 vtype,

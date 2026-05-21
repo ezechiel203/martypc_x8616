@@ -61,6 +61,14 @@ impl EFrameBackend {
     pub fn new(ctx: egui::Context) -> Result<EFrameBackend, Error> {
         Ok(EFrameBackend { ctx })
     }
+
+    pub fn backend_name(&self) -> &str {
+        "egui"
+    }
+
+    pub fn adapter_name(&self) -> &str {
+        ""
+    }
 }
 
 pub type EFrameScalerType = Box<

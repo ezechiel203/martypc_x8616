@@ -33,13 +33,9 @@ use crate::{
 };
 use std::{ffi::OsString, path::PathBuf};
 
-use display_manager_eframe::{
-    builder::EFrameDisplayManagerBuilder,
-    BufferDimensions,
-    EFrameBackend,
-    EFrameDisplayManager,
-    TextureDimensions,
-};
+use display_manager_eframe::{builder::EFrameDisplayManagerBuilder, EFrameBackend, EFrameDisplayManager};
+#[cfg(feature = "use_wgpu")]
+use display_manager_eframe::{BufferDimensions, TextureDimensions};
 use marty_display_common::display_manager::{DisplayManager, DmGuiOptions};
 use marty_egui_eframe::{context::GuiRenderContext, EGUI_MENU_BAR_HEIGHT};
 use marty_frontend_common::timestep_manager::TimestepManager;
@@ -358,6 +354,7 @@ impl MartyApp {
                         pitch: 640,
                     },
                     TextureDimensions { w: 640, h: 480 },
+                    render_state.adapter.get_info(),
                     render_state.device.clone(),
                     render_state.queue.clone(),
                     render_state.target_format,

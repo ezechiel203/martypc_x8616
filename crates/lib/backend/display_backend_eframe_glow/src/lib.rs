@@ -59,12 +59,44 @@ use egui_glow::{
 
 pub struct EFrameBackend {
     ctx: egui::Context,
-    gl:  Arc<glow::Context>,
+    gl: Arc<glow::Context>,
+    backend_name: String,
+    adapter_name: String,
 }
 
 impl EFrameBackend {
     pub fn new(ctx: egui::Context, gl: Arc<glow::Context>) -> Result<EFrameBackend, Error> {
-        Ok(EFrameBackend { ctx, gl })
+        let adapter_name = {
+            let (vendor, renderer, version) = unsafe {
+                (
+                    gl.get_parameter_string(glow::VENDOR),
+                    gl.get_parameter_string(glow::RENDERER),
+                    gl.get_parameter_string(glow::VERSION),
+                )
+            };
+
+            match (vendor.is_empty(), renderer.is_empty(), version.is_empty()) {
+                (false, false, _) => format!("{}, {}", vendor, renderer),
+                (_, false, _) => renderer,
+                (_, _, false) => version,
+                _ => String::new(),
+            }
+        };
+
+        Ok(EFrameBackend {
+            ctx,
+            gl,
+            backend_name: "glow".to_string(),
+            adapter_name,
+        })
+    }
+
+    pub fn backend_name(&self) -> &str {
+        &self.backend_name
+    }
+
+    pub fn adapter_name(&self) -> &str {
+        &self.adapter_name
     }
 }
 

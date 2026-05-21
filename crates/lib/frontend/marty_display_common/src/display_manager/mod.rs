@@ -131,6 +131,7 @@ impl Display for DisplayTargetType {
 pub struct DisplayTargetInfo {
     pub handle: DtHandle,
     pub backend_name: String,
+    pub adapter_name: String,
     pub dtype: DisplayTargetType,
     pub flags: DisplayTargetFlags,
     pub vtype: Option<VideoType>,

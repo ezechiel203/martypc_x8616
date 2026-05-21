@@ -856,6 +856,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "built"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4ad8f11f288f48ca24471bbd51ac257aaeaaa07adae295591266b792902ae64"
+dependencies = [
+ "git2",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1468,7 +1477,7 @@ checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
 name = "display_backend_eframe_glow"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "display_backend_trait",
@@ -1480,7 +1489,7 @@ dependencies = [
 
 [[package]]
 name = "display_backend_eframe_wgpu"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "display_backend_trait",
@@ -1493,7 +1502,7 @@ dependencies = [
 
 [[package]]
 name = "display_backend_trait"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "egui",
@@ -1504,7 +1513,7 @@ dependencies = [
 
 [[package]]
 name = "display_backend_wgpu"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "display_backend_trait",
@@ -1519,7 +1528,7 @@ dependencies = [
 
 [[package]]
 name = "display_manager_eframe"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "display_backend_eframe_glow",
@@ -1544,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "display_manager_wgpu"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "display_backend_wgpu",
@@ -2339,6 +2348,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "git2"
+version = "0.20.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b88256088d75a56f8ecfa070513a775dd9107f6530ef14919dac831af9cfe2b"
+dependencies = [
+ "bitflags 2.8.0",
+ "libc",
+ "libgit2-sys",
+ "log",
+ "url",
+]
+
+[[package]]
 name = "gl_generator"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2974,6 +2996,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5aba8db14291edd000dfcc4d620c7ebfb122c613afb886ca8803fa4e128a20a"
 
 [[package]]
+name = "libgit2-sys"
+version = "0.18.4+1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b26f66f35e1871b22efcf7191564123d2a446ca0538cde63c23adfefa9b15b7"
+dependencies = [
+ "cc",
+ "libc",
+ "libz-sys",
+ "pkg-config",
+]
+
+[[package]]
 name = "libloading"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3018,6 +3052,18 @@ checksum = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
 dependencies = [
  "libc",
  "pkg-config",
+]
+
+[[package]]
+name = "libz-sys"
+version = "1.1.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc3a226e576f50782b3305c5ccf458698f92798987f551c6a02efe8276721e22"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+ "vcpkg",
 ]
 
 [[package]]
@@ -3093,7 +3139,7 @@ dependencies = [
 
 [[package]]
 name = "marty_common"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "indexmap 2.14.0",
  "rustc-hash 2.1.2",
@@ -3105,7 +3151,7 @@ dependencies = [
 
 [[package]]
 name = "marty_config"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "bpaf",
@@ -3126,7 +3172,7 @@ dependencies = [
 
 [[package]]
 name = "marty_core"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "arduinox86_client 0.3.0 (git+https://github.com/dbalsom/arduinoX86)",
@@ -3164,7 +3210,7 @@ dependencies = [
 
 [[package]]
 name = "marty_display_common"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -3185,7 +3231,7 @@ dependencies = [
 
 [[package]]
 name = "marty_egui"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -3218,7 +3264,7 @@ dependencies = [
 
 [[package]]
 name = "marty_egui_common"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "egui",
  "egui_extras 0.30.0 (git+https://github.com/dbalsom/egui_martypc.git?branch=0.30.0_raw_winit_hook)",
@@ -3229,7 +3275,7 @@ dependencies = [
 
 [[package]]
 name = "marty_egui_eframe"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "egui",
  "egui_extras 0.30.0 (git+https://github.com/dbalsom/egui_martypc.git?branch=0.30.0_raw_winit_hook)",
@@ -3242,7 +3288,7 @@ dependencies = [
 
 [[package]]
 name = "marty_egui_wgpu"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "egui",
  "egui-wgpu",
@@ -3260,7 +3306,7 @@ dependencies = [
 
 [[package]]
 name = "marty_frontend_common"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -3291,7 +3337,7 @@ dependencies = [
 
 [[package]]
 name = "marty_scaler_glow"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "bytemuck",
  "eframe",
@@ -3302,7 +3348,7 @@ dependencies = [
 
 [[package]]
 name = "marty_scaler_null"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "egui",
  "marty_display_common",
@@ -3311,7 +3357,7 @@ dependencies = [
 
 [[package]]
 name = "marty_scaler_wgpu"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "bytemuck",
  "marty_display_common",
@@ -3322,7 +3368,7 @@ dependencies = [
 
 [[package]]
 name = "marty_videocard_renderer"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "bytemuck",
  "criterion",
@@ -3340,7 +3386,7 @@ dependencies = [
 
 [[package]]
 name = "marty_web_helpers"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "crossbeam-channel",
  "gloo-timers",
@@ -3355,10 +3401,11 @@ dependencies = [
 
 [[package]]
 name = "martypc_eframe"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "async-std",
+ "built",
  "crossbeam-channel",
  "display_manager_eframe",
  "eframe",
@@ -3399,7 +3446,7 @@ dependencies = [
 
 [[package]]
 name = "martypc_headless"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "arduinox86_client 0.3.0 (git+https://github.com/dbalsom/arduino808x)",
@@ -3429,7 +3476,7 @@ dependencies = [
 
 [[package]]
 name = "martypc_launcher"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "async-std",
@@ -5368,6 +5415,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ef4c4aa54d5d05a279399bfa921ec387b7aba77caf7a682ae8d86785b8fdad2"
 
 [[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
 name = "vec_map"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5752,7 +5805,7 @@ dependencies = [
 
 [[package]]
 name = "wgpu_wrapper"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "bytemuck",
  "pollster 0.3.0",
