@@ -11,3 +11,6 @@ rustflags = [
 rustflags = [
     "-C", "link-args=/STACK:8388608",
 ]
+[alias]
+# Local CI for the fork: `cargo xtask ci` (or `--fast` to skip clippy).
+xtask = "run --release -q -p xtask --"

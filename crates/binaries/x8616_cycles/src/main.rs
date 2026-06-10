@@ -25,9 +25,9 @@ mod timing286;
 
 use anyhow::{bail, Context, Result};
 use marty_core::bytequeue::ByteQueue; // brings `seek` into scope for decode
-use marty_core::cpu_808x::Cpu;
-use marty_core::cpu_common::{
-    builder::CpuBuilder, calc_linear_address, CpuAddress, CpuError, CpuType, Register16, Register8,
+use marty_core::{
+    cpu_808x::Cpu,
+    cpu_common::{builder::CpuBuilder, calc_linear_address, CpuAddress, CpuError, CpuType, Register16, Register8},
 };
 
 struct Args {
@@ -48,7 +48,8 @@ fn parse_num(s: &str) -> Result<u64> {
     let s = s.trim();
     if let Some(h) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
         u64::from_str_radix(h, 16).with_context(|| format!("bad hex: {s}"))
-    } else {
+    }
+    else {
         s.parse::<u64>()
             .or_else(|_| u64::from_str_radix(s, 16))
             .with_context(|| format!("bad number: {s}"))
@@ -127,7 +128,11 @@ fn main() -> Result<()> {
 
     let image = std::fs::read(&args.bin).with_context(|| format!("reading {}", args.bin))?;
     if args.load + image.len() > 0x10_0000 {
-        bail!("program ({} bytes @ {:#x}) overflows the 1 MiB address space", image.len(), args.load);
+        bail!(
+            "program ({} bytes @ {:#x}) overflows the 1 MiB address space",
+            image.len(),
+            args.load
+        );
     }
     if args.entry >= 0x10_0000 {
         bail!("entry {:#x} outside address space", args.entry);
@@ -213,13 +218,15 @@ fn main() -> Result<()> {
 
     if args.quiet {
         println!("{exec}");
-    } else if args.est286 {
+    }
+    else if args.est286 {
         println!(
             "cycles={exec} insns={insns} al=0x{al:02x} ax=0x{ax:04x} ip=0x{ip:04x} halted={} \
              model=80286-datasheet (v30_bus_cycles={v30_exec})",
             halted as u8
         );
-    } else {
+    }
+    else {
         println!(
             "cycles={exec} insns={insns} al=0x{al:02x} ax=0x{ax:04x} ip=0x{ip:04x} halted={}",
             halted as u8
@@ -239,7 +246,8 @@ fn main() -> Result<()> {
         if let Some(path) = file {
             std::fs::write(path, &bytes).with_context(|| format!("writing {path}"))?;
             eprintln!("dumped {} bytes from {:#x} to {}", len, addr, path);
-        } else {
+        }
+        else {
             // 16 bytes per line of hex.
             for (i, chunk) in bytes.chunks(16).enumerate() {
                 let hex: Vec<String> = chunk.iter().map(|b| format!("{b:02x}")).collect();

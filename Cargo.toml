@@ -16,7 +16,8 @@ members = [
     "crates/binaries/martypc_headless",
     "crates/binaries/x8616_cycles",
     "crates/binaries/martypc_eframe",
-    "crates/binaries/martypc_launcher"
+    "crates/binaries/martypc_launcher",
+    "crates/xtask"
 ]
 resolver = "2"
 default-members = ["crates/binaries/martypc_eframe"]

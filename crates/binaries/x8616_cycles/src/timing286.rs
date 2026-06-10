@@ -17,9 +17,7 @@
 //! validated against real silicon. Uncovered opcodes fall back to a documented
 //! default rather than silently reading zero.
 
-use marty_core::cpu_common::{
-    instruction::Instruction, operands::OperandType, Mnemonic,
-};
+use marty_core::cpu_common::{instruction::Instruction, operands::OperandType, Mnemonic};
 
 /// Post-transfer prefetch-queue reload penalty (datasheet "m"), 16-bit bus.
 const M: u32 = 3;
@@ -46,11 +44,6 @@ fn is_imm(op: OperandType) -> bool {
     )
 }
 
-#[inline]
-fn is_reg(op: OperandType) -> bool {
-    matches!(op, OperandType::Register8(_) | OperandType::Register16(_))
-}
-
 /// Evaluate an x86 condition code (the low nibble of a 7x Jcc opcode) against
 /// FLAGS, to decide the taken/not-taken timing of a conditional branch.
 fn cond_taken(cc: u8, flags: u16) -> bool {
@@ -60,22 +53,22 @@ fn cond_taken(cc: u8, flags: u16) -> bool {
     let sf = flags & 0x0080 != 0;
     let of = flags & 0x0800 != 0;
     match cc & 0x0F {
-        0x0 => of,                 // JO
-        0x1 => !of,                // JNO
-        0x2 => cf,                 // JB/JC
-        0x3 => !cf,                // JAE/JNC
-        0x4 => zf,                 // JZ/JE
-        0x5 => !zf,                // JNZ/JNE
-        0x6 => cf || zf,           // JBE
-        0x7 => !(cf || zf),        // JA
-        0x8 => sf,                 // JS
-        0x9 => !sf,                // JNS
-        0xA => pf,                 // JP
-        0xB => !pf,                // JNP
-        0xC => sf != of,           // JL
-        0xD => sf == of,           // JGE
-        0xE => zf || (sf != of),   // JLE
-        _ => !(zf || (sf != of)),  // JG
+        0x0 => of,                // JO
+        0x1 => !of,               // JNO
+        0x2 => cf,                // JB/JC
+        0x3 => !cf,               // JAE/JNC
+        0x4 => zf,                // JZ/JE
+        0x5 => !zf,               // JNZ/JNE
+        0x6 => cf || zf,          // JBE
+        0x7 => !(cf || zf),       // JA
+        0x8 => sf,                // JS
+        0x9 => !sf,               // JNS
+        0xA => pf,                // JP
+        0xB => !pf,               // JNP
+        0xC => sf != of,          // JL
+        0xD => sf == of,          // JGE
+        0xE => zf || (sf != of),  // JLE
+        _ => !(zf || (sf != of)), // JG
     }
 }
 
@@ -93,16 +86,32 @@ pub fn cycles_286(instr: &Instruction, flags: u16, cl: u8, cx: u16) -> u32 {
         MOV => {
             if is_mem(op1) {
                 3 // mem,reg / mem,imm
-            } else if is_mem(op2) {
+            }
+            else if is_mem(op2) {
                 5 // reg,mem
-            } else {
+            }
+            else {
                 2 // reg,reg / reg,imm / reg,sreg
             }
         }
         LEA => 3,
-        XCHG => if mem { 5 } else { 3 },
-        PUSH => if is_mem(op1) { 5 } else { 3 },
-        POP => if is_mem(op1) { 5 } else { 5 },
+        XCHG => {
+            if mem {
+                5
+            }
+            else {
+                3
+            }
+        }
+        PUSH => {
+            if is_mem(op1) {
+                5
+            }
+            else {
+                3
+            }
+        }
+        POP => 5, // POP reg and POP mem are both 5 on the 286
         PUSHF | PUSHA => 3,
         POPF => 5,
         POPA => 19,
@@ -111,35 +120,51 @@ pub fn cycles_286(instr: &Instruction, flags: u16, cl: u8, cx: u16) -> u32 {
 
         // --- ALU (ADD/OR/ADC/SBB/AND/SUB/XOR) ------------------------------
         ADD | OR | ADC | SBB | AND | SUB | XOR => {
-            if is_mem(op1) {
-                7 // mem,reg / mem,imm
-            } else if is_mem(op2) {
-                7 // reg,mem
-            } else if is_imm(op2) {
+            if mem {
+                7 // any memory operand: mem,reg / reg,mem / mem,imm
+            }
+            else if is_imm(op2) {
                 3 // reg,imm
-            } else {
+            }
+            else {
                 2 // reg,reg
             }
         }
         CMP => {
             if mem {
-                if is_mem(op1) && is_imm(op2) { 6 } else { 7 }
-            } else if is_imm(op2) {
+                if is_mem(op1) && is_imm(op2) {
+                    6
+                }
+                else {
+                    7
+                }
+            }
+            else if is_imm(op2) {
                 3
-            } else {
+            }
+            else {
                 2
             }
         }
         TEST => {
             if mem {
                 6
-            } else if is_imm(op2) {
+            }
+            else if is_imm(op2) {
                 3
-            } else {
+            }
+            else {
                 2
             }
         }
-        INC | DEC | NEG | NOT => if mem { 7 } else { 2 },
+        INC | DEC | NEG | NOT => {
+            if mem {
+                7
+            }
+            else {
+                2
+            }
+        }
 
         // --- shifts / rotates: reg,1=2; reg,(CL|imm)=5+n; mem forms +EA -----
         SHL | SHR | SAR | ROL | ROR | RCL | RCR => {
@@ -161,30 +186,132 @@ pub fn cycles_286(instr: &Instruction, flags: u16, cl: u8, cx: u16) -> u32 {
         }
 
         // --- multiply / divide (hardware multiplier — the 286's big win) ----
-        MUL => if word { if mem { 24 } else { 21 } } else if mem { 16 } else { 13 },
-        IMUL => if word { if mem { 24 } else { 21 } } else if mem { 16 } else { 13 },
-        DIV => if word { if mem { 25 } else { 22 } } else if mem { 17 } else { 14 },
-        IDIV => if word { if mem { 28 } else { 25 } } else if mem { 20 } else { 17 },
+        MUL => {
+            if word {
+                if mem {
+                    24
+                }
+                else {
+                    21
+                }
+            }
+            else if mem {
+                16
+            }
+            else {
+                13
+            }
+        }
+        IMUL => {
+            if word {
+                if mem {
+                    24
+                }
+                else {
+                    21
+                }
+            }
+            else if mem {
+                16
+            }
+            else {
+                13
+            }
+        }
+        DIV => {
+            if word {
+                if mem {
+                    25
+                }
+                else {
+                    22
+                }
+            }
+            else if mem {
+                17
+            }
+            else {
+                14
+            }
+        }
+        IDIV => {
+            if word {
+                if mem {
+                    28
+                }
+                else {
+                    25
+                }
+            }
+            else if mem {
+                20
+            }
+            else {
+                17
+            }
+        }
 
         // --- control transfer (datasheet "+m" prefetch reload on taken) -----
         JMP => match instr.opcode {
-            0xEB | 0xE9 => 7 + M,               // near direct
-            0xFF => if mem { 11 + M } else { 7 + M }, // near indirect
-            0xEA => 11 + M,                     // far direct
+            0xEB | 0xE9 => 7 + M, // near direct
+            0xFF => {
+                if mem {
+                    11 + M
+                }
+                else {
+                    7 + M
+                }
+            } // near indirect
+            0xEA => 11 + M,       // far direct
             _ => 7 + M,
         },
         CALL => match instr.opcode {
             0xE8 => 7 + M,
-            0xFF => if mem { 11 + M } else { 7 + M },
+            0xFF => {
+                if mem {
+                    11 + M
+                }
+                else {
+                    7 + M
+                }
+            }
             0x9A => 13 + M,
             _ => 7 + M,
         },
         RETN => 11 + M,
         RETF => 15 + M,
-        LOOP => if cx != 1 { 8 + M } else { 4 },     // taken while CX (pre-dec) != 1
-        LOOPE => if cx != 1 && (flags & 0x40 != 0) { 8 + M } else { 4 },
-        LOOPNE => if cx != 1 && (flags & 0x40 == 0) { 8 + M } else { 4 },
-        JCXZ => if cx == 0 { 8 + M } else { 4 },
+        LOOP => {
+            if cx != 1 {
+                8 + M
+            }
+            else {
+                4
+            }
+        } // taken while CX (pre-dec) != 1
+        LOOPE => {
+            if cx != 1 && (flags & 0x40 != 0) {
+                8 + M
+            }
+            else {
+                4
+            }
+        }
+        LOOPNE => {
+            if cx != 1 && (flags & 0x40 == 0) {
+                8 + M
+            }
+            else {
+                4
+            }
+        }
+        JCXZ => {
+            if cx == 0 {
+                8 + M
+            }
+            else {
+                4
+            }
+        }
         INT => 23 + M,
         INT3 => 23 + M,
         IRET => 17 + M,
@@ -207,7 +334,12 @@ pub fn cycles_286(instr: &Instruction, flags: u16, cl: u8, cx: u16) -> u32 {
 
         // Conditional branches (7x): taken 7+m, not taken 3.
         _ if (0x70..=0x7F).contains(&instr.opcode) => {
-            if cond_taken(instr.opcode, flags) { 7 + M } else { 3 }
+            if cond_taken(instr.opcode, flags) {
+                7 + M
+            }
+            else {
+                3
+            }
         }
 
         _ => DEFAULT,
