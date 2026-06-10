@@ -1,0 +1,15 @@
+[package]
+name = "x8616_cycles"
+description = "Cycle-accurate T-state ticker for x86_16 (X8616) programs, on the MartyPC 8086/8088 core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "x8616-cycles"
+path = "src/main.rs"
+
+[dependencies]
+marty_core = { path = "../../marty_core" }
+anyhow.workspace = true

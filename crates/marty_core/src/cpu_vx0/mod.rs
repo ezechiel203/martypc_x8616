@@ -822,14 +822,15 @@ impl NecVx0 {
 
         match cpu_type {
             CpuType::NecV20(_) => {
+                // V20: 8088-class 8-bit external bus, 4-byte prefetch queue.
                 cpu.queue.set_size(4, 1);
                 cpu.fetch_size = TransferSize::Byte;
             }
-            /*
-            CpuType::NecV30 => {
+            CpuType::NecV30(_) => {
+                // V30: 8086-class 16-bit external bus, 6-byte prefetch queue.
                 cpu.queue.set_size(6, 2);
                 cpu.fetch_size = TransferSize::Word;
-            }*/
+            }
             _ => {
                 panic!("Invalid CPU type.")
             }

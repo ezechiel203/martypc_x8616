@@ -14,6 +14,7 @@ members = [
     "crates/lib/frontend/marty_config",
     "crates/lib/frontend/marty_web_helpers",
     "crates/binaries/martypc_headless",
+    "crates/binaries/x8616_cycles",
     "crates/binaries/martypc_eframe",
     "crates/binaries/martypc_launcher"
 ]

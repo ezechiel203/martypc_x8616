@@ -105,9 +105,9 @@ impl CpuBuilder {
                     );
                     Ok(cpu.into())
                 }
-                CpuType::NecV20(_) => {
+                CpuType::NecV20(_) | CpuType::NecV30(_) => {
                     let cpu = NecVx0::new(
-                        CpuType::NecV20(Default::default()),
+                        cpu_type,
                         self.trace_mode,
                         self.trace_logger.take().unwrap_or_default(),
                         #[cfg(feature = "cpu_validator")]

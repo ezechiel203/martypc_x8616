@@ -307,11 +307,14 @@ impl NecVx0 {
     }
 
     pub fn biu_queue_has_room(&mut self) -> bool {
+        // Use the queue's actual configured size (4 on the V20's 8-bit bus, 6 on
+        // the V30's 16-bit bus) rather than the byte-bus QUEUE_SIZE constant.
+        let qsize = self.queue.get_size();
         match self.cpu_type {
-            CpuType::NecV20(_) => self.queue.len() < QUEUE_SIZE,
+            CpuType::NecV20(_) => self.queue.len() < qsize,
             CpuType::NecV30(_) => {
-                // 8086 fetches two bytes at a time, so must be two free bytes in queue
-                self.queue.len() < QUEUE_SIZE - 1
+                // 16-bit bus fetches two bytes at a time, so need two free bytes.
+                self.queue.len() < qsize - 1
             }
             _ => {
                 panic!("Unsupported CPU subtype")
