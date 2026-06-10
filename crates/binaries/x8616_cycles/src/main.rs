@@ -21,10 +21,13 @@
 // Output (default): one line of `key=value` fields, e.g.
 //   cycles=12345 insns=2001 al=0x17 ax=0x0017 ip=0x7e0c halted=1
 
+mod timing286;
+
 use anyhow::{bail, Context, Result};
+use marty_core::bytequeue::ByteQueue; // brings `seek` into scope for decode
 use marty_core::cpu_808x::Cpu;
 use marty_core::cpu_common::{
-    builder::CpuBuilder, CpuAddress, CpuError, CpuType, Register16, Register8,
+    builder::CpuBuilder, calc_linear_address, CpuAddress, CpuError, CpuType, Register16, Register8,
 };
 
 struct Args {
@@ -35,6 +38,9 @@ struct Args {
     sp: u16,
     max: u64,
     quiet: bool,
+    // 80286 datasheet-timing estimate: execute functionally on the V30 (shared
+    // real-mode 186/286 ISA) but accumulate cycles from the 286 timing model.
+    est286: bool,
     dump: Option<(usize, usize, Option<String>)>, // (addr, len, optional raw-out file)
 }
 
@@ -58,6 +64,7 @@ fn parse_args() -> Result<Args> {
         sp: 0x7C00,
         max: 50_000_000,
         quiet: false,
+        est286: false,
         dump: None,
     };
     let mut it = std::env::args().skip(1);
@@ -91,7 +98,15 @@ fn parse_args() -> Result<Args> {
                     // MartyPC to a real-mode 286 (the 286's 16-bit bus, minus the
                     // 286's faster microcode/pipeline). Now enabled in the V30 core.
                     "v30" => CpuType::NecV30(Default::default()),
-                    other => bail!("unknown cpu: {other} (want 8086, 8088, v20, or v30)"),
+                    // 80286 real mode: no 286 core exists in MartyPC, so execute
+                    // functionally on the V30 (the 186/286 real-mode integer ISA
+                    // is identical for our codegen) and report the 80286 datasheet
+                    // timing model instead of the V30's bus cycles.
+                    "286" => {
+                        a.est286 = true;
+                        CpuType::NecV30(Default::default())
+                    }
+                    other => bail!("unknown cpu: {other} (want 8086, 8088, v20, v30, or 286)"),
                 }
             }
             other if a.bin.is_empty() && !other.starts_with("--") => a.bin = other.to_string(),
@@ -148,7 +163,24 @@ fn main() -> Result<()> {
     // is precisely our "program terminated" signal, not a fault. The HLT's own
     // execution cycles are already counted when this returns.
     let mut halted = false;
+    let mut cyc286: u64 = 0;
     loop {
+        // 286 estimate: decode the instruction at CS:IP with the CPU's own
+        // decoder (peek — no state change) and add its 80286 datasheet cost,
+        // using live FLAGS/CL/CX for the data-dependent forms.
+        if args.est286 {
+            let cs = cpu.get_register16(Register16::CS);
+            let ip = cpu.get_ip();
+            let flags = cpu.get_flags();
+            let cl = cpu.get_register8(Register8::CL);
+            let cx = cpu.get_register16(Register16::CX);
+            let lin = calc_linear_address(cs, ip) as usize;
+            cpu.bus_mut().seek(lin);
+            let ct = cpu.get_type();
+            if let Ok(instr) = ct.decode(cpu.bus_mut(), true) {
+                cyc286 += timing286::cycles_286(&instr, flags, cl, cx) as u64;
+            }
+        }
         match cpu.step(false) {
             Ok(_) => {
                 let _ = cpu.step_finish(None);
@@ -170,14 +202,23 @@ fn main() -> Result<()> {
     }
 
     let (total, halt) = cpu.get_cycle_ct();
-    let exec = total.saturating_sub(halt); // exclude the HLT spin cycles
+    let v30_exec = total.saturating_sub(halt); // exclude the HLT spin cycles
     let insns = cpu.get_instruction_ct();
     let al = cpu.get_register8(Register8::AL);
     let ax = cpu.get_register16(Register16::AX);
     let ip = cpu.get_ip();
+    // In 286 mode the reported cycles are the datasheet-timing estimate; the
+    // V30 bus cycles are still shown for reference.
+    let exec = if args.est286 { cyc286 } else { v30_exec };
 
     if args.quiet {
         println!("{exec}");
+    } else if args.est286 {
+        println!(
+            "cycles={exec} insns={insns} al=0x{al:02x} ax=0x{ax:04x} ip=0x{ip:04x} halted={} \
+             model=80286-datasheet (v30_bus_cycles={v30_exec})",
+            halted as u8
+        );
     } else {
         println!(
             "cycles={exec} insns={insns} al=0x{al:02x} ax=0x{ax:04x} ip=0x{ip:04x} halted={}",
